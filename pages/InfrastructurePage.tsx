@@ -63,75 +63,64 @@ const RotaryUnionScene: React.FC<{
 
     const time = state.clock.elapsedTime;
 
-    // Animate water particles (blue)
+    // Animate water particles (blue) - flows UPWARD from ground through rotary union to ring
     if (waterParticlesRef.current) {
       const positions = waterParticlesRef.current.geometry.attributes.position.array as Float32Array;
       for (let i = 0; i < positions.length / 3; i++) {
         const progress = ((time * 0.5 + i / 10) % 1);
         positions[i * 3] = -15; // x position (pipe 1)
-        positions[i * 3 + 1] = -40 + progress * 50; // y position (flows upward)
+        positions[i * 3 + 1] = -40 + progress * 37; // y position (flows upward from -40 to -3)
         positions[i * 3 + 2] = 0;
       }
       waterParticlesRef.current.geometry.attributes.position.needsUpdate = true;
     }
 
-    // Animate sewage particles (brown/gray)
+    // Animate sewage particles (brown/gray) - flows DOWNWARD from ring through rotary union to ground
     if (sewageParticlesRef.current) {
       const positions = sewageParticlesRef.current.geometry.attributes.position.array as Float32Array;
       for (let i = 0; i < positions.length / 3; i++) {
         const progress = ((time * 0.4 + i / 8) % 1);
         positions[i * 3] = -5; // x position (pipe 2)
-        positions[i * 3 + 1] = 10 - progress * 50; // y position (flows downward)
+        positions[i * 3 + 1] = -3 - progress * 37; // y position (flows downward from -3 to -40)
         positions[i * 3 + 2] = 0;
       }
       sewageParticlesRef.current.geometry.attributes.position.needsUpdate = true;
     }
 
-    // Animate electricity particles (yellow)
+    // Animate electricity particles (yellow) - flows UPWARD
     if (electricParticlesRef.current) {
       const positions = electricParticlesRef.current.geometry.attributes.position.array as Float32Array;
       for (let i = 0; i < positions.length / 3; i++) {
         const progress = ((time * 0.6 + i / 12) % 1);
         positions[i * 3] = 5; // x position (pipe 3)
-        positions[i * 3 + 1] = -40 + progress * 50; // y position (flows upward)
+        positions[i * 3 + 1] = -40 + progress * 37; // y position (flows upward)
         positions[i * 3 + 2] = 0;
       }
       electricParticlesRef.current.geometry.attributes.position.needsUpdate = true;
     }
 
-    // Animate data particles (purple)
+    // Animate data particles (purple) - flows UPWARD
     if (dataParticlesRef.current) {
       const positions = dataParticlesRef.current.geometry.attributes.position.array as Float32Array;
       for (let i = 0; i < positions.length / 3; i++) {
         const progress = ((time * 0.8 + i / 15) % 1);
         positions[i * 3] = 15; // x position (pipe 4)
-        positions[i * 3 + 1] = -40 + progress * 50; // y position (flows upward)
+        positions[i * 3 + 1] = -40 + progress * 37; // y position (flows upward)
         positions[i * 3 + 2] = 0;
       }
       dataParticlesRef.current.geometry.attributes.position.needsUpdate = true;
     }
   });
 
-  // Create ring arc geometry (30-degree section)
+  // Create flat ring section geometry (horizontal, not curved)
   const ringArcGeometry = useMemo(() => {
-    const innerRadius = 35;
-    const outerRadius = 50;
-    const arcAngle = Math.PI / 6; // 30 degrees
-    const height = 15;
+    // Create a flat ring section that's horizontal (parallel to ground)
+    const width = 25; // Width of the ring section
+    const depth = 30; // Depth (radial dimension)
+    const height = 10; // Vertical height of the ring section
 
-    const shape = new THREE.Shape();
-    shape.absarc(0, 0, outerRadius, -arcAngle / 2, arcAngle / 2, false);
-    shape.absarc(0, 0, innerRadius, arcAngle / 2, -arcAngle / 2, true);
-    shape.closePath();
-
-    return new THREE.ExtrudeGeometry(shape, {
-      depth: height,
-      bevelEnabled: true,
-      bevelThickness: 0.5,
-      bevelSize: 0.3,
-      bevelSegments: 2,
-      curveSegments: 32
-    });
+    const geometry = new THREE.BoxGeometry(width, height, depth);
+    return geometry;
   }, []);
 
   return (
@@ -140,11 +129,11 @@ const RotaryUnionScene: React.FC<{
       <ambientLight intensity={isDarkMode ? 0.4 : 0.6} />
       <directionalLight position={[10, 10, 5]} intensity={isDarkMode ? 0.8 : 1.2} />
       <directionalLight position={[-10, -10, -5]} intensity={0.3} />
-      <pointLight position={[0, 0, 0]} intensity={0.5} color="#06b6d4" />
+      <pointLight position={[0, 10, 0]} intensity={0.5} color="#06b6d4" />
 
-      {/* Ground Platform (Stationary) */}
-      <mesh position={[0, -45, 0]} receiveShadow>
-        <cylinderGeometry args={[60, 60, 5, 64]} />
+      {/* Ground Platform (Stationary) - Bottom layer */}
+      <mesh position={[0, -30, 0]} receiveShadow>
+        <boxGeometry args={[50, 8, 35]} />
         <meshStandardMaterial
           color={isDarkMode ? '#334155' : '#cbd5e1'}
           metalness={0.2}
@@ -152,99 +141,117 @@ const RotaryUnionScene: React.FC<{
         />
       </mesh>
       <Text
-        position={[0, -42, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        fontSize={3}
+        position={[0, -26, 18]}
+        fontSize={2.5}
         color={isDarkMode ? '#94a3b8' : '#64748b'}
         anchorX="center"
         anchorY="middle"
       >
-        GROUND INFRASTRUCTURE
+        STATIONARY GROUND
       </Text>
 
-      {/* Rotary Union (Central Hub) */}
-      <mesh position={[0, -15, 0]} castShadow>
-        <cylinderGeometry args={[12, 12, 30, 32]} />
-        <meshStandardMaterial
-          color={isDarkMode ? '#1e293b' : '#f1f5f9'}
-          metalness={0.6}
-          roughness={0.3}
-        />
-      </mesh>
-
-      {/* Rotary Union Label */}
-      <Text
-        position={[0, -15, 13]}
-        fontSize={2}
-        color={isDarkMode ? '#e2e8f0' : '#1e293b'}
-        anchorX="center"
-        anchorY="middle"
-      >
-        ROTARY
-      </Text>
-      <Text
-        position={[0, -18, 13]}
-        fontSize={2}
-        color={isDarkMode ? '#e2e8f0' : '#1e293b'}
-        anchorX="center"
-        anchorY="middle"
-      >
-        UNION
-      </Text>
-
-      {/* Utility Pipes from Ground to Rotary Union */}
+      {/* Utility pipes coming up from ground */}
       {/* Water Pipe (Blue) */}
-      <mesh position={[-15, -30, 0]}>
-        <cylinderGeometry args={[2, 2, 30, 16]} />
+      <mesh position={[-15, -35, 0]}>
+        <cylinderGeometry args={[2, 2, 10, 16]} />
         <meshStandardMaterial color="#06b6d4" metalness={0.5} roughness={0.4} />
       </mesh>
 
       {/* Sewage Pipe (Gray) */}
-      <mesh position={[-5, -30, 0]}>
-        <cylinderGeometry args={[2, 2, 30, 16]} />
+      <mesh position={[-5, -35, 0]}>
+        <cylinderGeometry args={[2, 2, 10, 16]} />
         <meshStandardMaterial color="#78716c" metalness={0.4} roughness={0.6} />
       </mesh>
 
       {/* Electricity Conduit (Yellow) */}
-      <mesh position={[5, -30, 0]}>
-        <cylinderGeometry args={[1.5, 1.5, 30, 16]} />
+      <mesh position={[5, -35, 0]}>
+        <cylinderGeometry args={[1.5, 1.5, 10, 16]} />
         <meshStandardMaterial color="#fbbf24" metalness={0.7} roughness={0.3} emissive="#fbbf24" emissiveIntensity={0.2} />
       </mesh>
 
       {/* Data Fiber (Purple) */}
-      <mesh position={[15, -30, 0]}>
-        <cylinderGeometry args={[1, 1, 30, 16]} />
+      <mesh position={[15, -35, 0]}>
+        <cylinderGeometry args={[1, 1, 10, 16]} />
         <meshStandardMaterial color="#8b5cf6" metalness={0.8} roughness={0.2} emissive="#8b5cf6" emissiveIntensity={0.3} />
       </mesh>
 
-      {/* Pipes from Rotary Union to Ring */}
+      {/* Rotary Union Assembly - At the EDGE where ground meets ring */}
+      {/* Main rotary union housing (like a bearing) */}
+      <mesh position={[0, -18, 0]} castShadow>
+        <boxGeometry args={[42, 8, 30]} />
+        <meshStandardMaterial
+          color={isDarkMode ? '#1e293b' : '#e2e8f0'}
+          metalness={0.7}
+          roughness={0.3}
+        />
+      </mesh>
+
+      {/* Rotary union channels (visible cross-section) */}
+      <mesh position={[-15, -18, 0]}>
+        <cylinderGeometry args={[2.2, 2.2, 8.5, 16]} />
+        <meshStandardMaterial color="#06b6d4" metalness={0.6} roughness={0.3} emissive="#06b6d4" emissiveIntensity={0.1} />
+      </mesh>
+      <mesh position={[-5, -18, 0]}>
+        <cylinderGeometry args={[2.2, 2.2, 8.5, 16]} />
+        <meshStandardMaterial color="#78716c" metalness={0.6} roughness={0.3} />
+      </mesh>
+      <mesh position={[5, -18, 0]}>
+        <cylinderGeometry args={[1.7, 1.7, 8.5, 16]} />
+        <meshStandardMaterial color="#fbbf24" metalness={0.7} roughness={0.3} emissive="#fbbf24" emissiveIntensity={0.2} />
+      </mesh>
+      <mesh position={[15, -18, 0]}>
+        <cylinderGeometry args={[1.2, 1.2, 8.5, 16]} />
+        <meshStandardMaterial color="#8b5cf6" metalness={0.8} roughness={0.2} emissive="#8b5cf6" emissiveIntensity={0.3} />
+      </mesh>
+
+      {/* Rotary Union Label */}
+      <Text
+        position={[0, -18, 16]}
+        fontSize={2}
+        color={isDarkMode ? '#e2e8f0' : '#1e293b'}
+        anchorX="center"
+        anchorY="middle"
+      >
+        ROTARY UNION
+      </Text>
+      <Text
+        position={[0, -21, 16]}
+        fontSize={1.5}
+        color={isDarkMode ? '#94a3b8' : '#64748b'}
+        anchorX="center"
+        anchorY="middle"
+      >
+        (Multi-Passage)
+      </Text>
+
+      {/* Pipes from Rotary Union to Ring (going UP) */}
       {/* Water */}
-      <mesh position={[-15, 5, 0]}>
-        <cylinderGeometry args={[1.8, 1.8, 20, 16]} />
+      <mesh position={[-15, -8, 0]}>
+        <cylinderGeometry args={[1.9, 1.9, 10, 16]} />
         <meshStandardMaterial color="#06b6d4" metalness={0.5} roughness={0.4} transparent opacity={0.8} />
       </mesh>
 
       {/* Sewage */}
-      <mesh position={[-5, 5, 0]}>
-        <cylinderGeometry args={[1.8, 1.8, 20, 16]} />
+      <mesh position={[-5, -8, 0]}>
+        <cylinderGeometry args={[1.9, 1.9, 10, 16]} />
         <meshStandardMaterial color="#78716c" metalness={0.4} roughness={0.6} transparent opacity={0.8} />
       </mesh>
 
       {/* Electricity */}
-      <mesh position={[5, 5, 0]}>
-        <cylinderGeometry args={[1.3, 1.3, 20, 16]} />
+      <mesh position={[5, -8, 0]}>
+        <cylinderGeometry args={[1.4, 1.4, 10, 16]} />
         <meshStandardMaterial color="#fbbf24" metalness={0.7} roughness={0.3} emissive="#fbbf24" emissiveIntensity={0.2} transparent opacity={0.8} />
       </mesh>
 
       {/* Data */}
-      <mesh position={[15, 5, 0]}>
-        <cylinderGeometry args={[0.8, 0.8, 20, 16]} />
+      <mesh position={[15, -8, 0]}>
+        <cylinderGeometry args={[0.9, 0.9, 10, 16]} />
         <meshStandardMaterial color="#8b5cf6" metalness={0.8} roughness={0.2} emissive="#8b5cf6" emissiveIntensity={0.3} transparent opacity={0.8} />
       </mesh>
 
-      {/* Rotating Ring Arc */}
-      <group ref={ringRef} position={[0, 15, 0]}>
-        <mesh geometry={ringArcGeometry} castShadow receiveShadow>
+      {/* Rotating Ring Section - FLAT and HORIZONTAL */}
+      <group ref={ringRef} position={[0, 0, 0]}>
+        <mesh geometry={ringArcGeometry} castShadow receiveShadow position={[0, 0, 0]}>
           <meshStandardMaterial
             color={isDarkMode ? '#e2e8f0' : '#fdba74'}
             metalness={0.3}
@@ -252,33 +259,42 @@ const RotaryUnionScene: React.FC<{
           />
         </mesh>
 
-        {/* Connection points on ring arc */}
-        <mesh position={[-15, -7.5, 0]}>
+        {/* Connection points at BOTTOM of ring (where it meets rotary union) */}
+        <mesh position={[-15, -5, 0]}>
           <sphereGeometry args={[2.5, 16, 16]} />
           <meshStandardMaterial color="#06b6d4" metalness={0.6} />
         </mesh>
-        <mesh position={[-5, -7.5, 0]}>
+        <mesh position={[-5, -5, 0]}>
           <sphereGeometry args={[2.5, 16, 16]} />
           <meshStandardMaterial color="#78716c" metalness={0.6} />
         </mesh>
-        <mesh position={[5, -7.5, 0]}>
+        <mesh position={[5, -5, 0]}>
           <sphereGeometry args={[2, 16, 16]} />
           <meshStandardMaterial color="#fbbf24" metalness={0.7} emissive="#fbbf24" emissiveIntensity={0.2} />
         </mesh>
-        <mesh position={[15, -7.5, 0]}>
+        <mesh position={[15, -5, 0]}>
           <sphereGeometry args={[1.5, 16, 16]} />
           <meshStandardMaterial color="#8b5cf6" metalness={0.8} emissive="#8b5cf6" emissiveIntensity={0.3} />
         </mesh>
 
         {/* Ring Label */}
         <Text
-          position={[0, 0, 52]}
+          position={[0, 8, 0]}
           fontSize={2.5}
           color={isDarkMode ? '#ffffff' : '#1e293b'}
           anchorX="center"
           anchorY="middle"
         >
-          ROTATING RING
+          ROTATING RING SECTION
+        </Text>
+        <Text
+          position={[0, 5, 0]}
+          fontSize={1.8}
+          color={isDarkMode ? '#94a3b8' : '#64748b'}
+          anchorX="center"
+          anchorY="middle"
+        >
+          (Spins horizontally)
         </Text>
       </group>
 
@@ -296,45 +312,79 @@ const RotaryUnionScene: React.FC<{
         <pointsMaterial size={0.6} vertexColors transparent opacity={0.95} />
       </points>
 
-      {/* Pipe Labels */}
+      {/* Pipe Labels below ground */}
       <Text
-        position={[-15, -45, 3]}
-        fontSize={1.2}
+        position={[-15, -42, 3]}
+        fontSize={1.5}
         color="#06b6d4"
         anchorX="center"
       >
-        WATER
+        WATER IN
       </Text>
       <Text
-        position={[-5, -45, 3]}
-        fontSize={1.2}
+        position={[-5, -42, 3]}
+        fontSize={1.5}
         color="#78716c"
         anchorX="center"
       >
-        SEWAGE
+        SEWAGE OUT
       </Text>
       <Text
-        position={[5, -45, 3]}
-        fontSize={1.2}
+        position={[5, -42, 3]}
+        fontSize={1.5}
         color="#fbbf24"
         anchorX="center"
       >
-        POWER
+        POWER IN
       </Text>
       <Text
-        position={[15, -45, 3]}
-        fontSize={1.2}
+        position={[15, -42, 3]}
+        fontSize={1.5}
         color="#8b5cf6"
         anchorX="center"
       >
-        DATA
+        DATA IN
       </Text>
 
-      {/* Rotation indicator */}
-      <mesh position={[0, 20, 42]} rotation={[0, 0, 0]}>
+      {/* Rotation indicator on ring */}
+      <mesh position={[0, 8, 16]} rotation={[0, 0, 0]}>
         <cylinderGeometry args={[0.5, 2, 4, 8]} />
         <meshStandardMaterial color={isAutoplay ? '#10b981' : '#ef4444'} emissive={isAutoplay ? '#10b981' : '#ef4444'} emissiveIntensity={0.5} />
       </mesh>
+
+      {/* Flow direction arrows */}
+      <Text
+        position={[-15, -25, 3]}
+        fontSize={2}
+        color="#06b6d4"
+        anchorX="center"
+      >
+        ↑
+      </Text>
+      <Text
+        position={[-5, -25, 3]}
+        fontSize={2}
+        color="#78716c"
+        anchorX="center"
+      >
+        ↓
+      </Text>
+      <Text
+        position={[5, -25, 3]}
+        fontSize={2}
+        color="#fbbf24"
+        anchorX="center"
+      >
+        ↑
+      </Text>
+      <Text
+        position={[15, -25, 3]}
+        fontSize={2}
+        color="#8b5cf6"
+        anchorX="center"
+      >
+        ↑
+      </Text>
     </>
   );
 };
@@ -349,14 +399,14 @@ interface ExplanationStep {
 
 // Explanation steps that trigger at different rotation angles
 const explanationSteps: ExplanationStep[] = [
-  { angle: 0, text: "Ring begins rotation cycle", position: 'top-right', utility: 'water' },
-  { angle: 45, text: "Water flows through rotary seal maintaining pressure", position: 'left', utility: 'water' },
-  { angle: 90, text: "Seal maintains perfect integrity during rotation", position: 'bottom', utility: 'water' },
-  { angle: 135, text: "Sewage drains via gravity-assist through dedicated channel", position: 'right', utility: 'sewage' },
-  { angle: 180, text: "Multiple passages allow simultaneous bidirectional flow", position: 'top' },
-  { angle: 225, text: "Electricity transfers continuously via slip rings", position: 'left', utility: 'electricity' },
-  { angle: 270, text: "Data flows through fiber optic rotary joint without signal loss", position: 'bottom-right', utility: 'data' },
-  { angle: 315, text: "System completes full rotation - ready for next cycle", position: 'top-left' },
+  { angle: 0, text: "Ring rotates horizontally while utilities flow through edge-mounted rotary union", position: 'top-right', utility: 'water' },
+  { angle: 45, text: "Water flows UP from ground, through rotary union channels, into rotating ring", position: 'left', utility: 'water' },
+  { angle: 90, text: "Rotary union at ring's base maintains sealed connections during rotation", position: 'bottom' },
+  { angle: 135, text: "Sewage flows DOWN from ring through dedicated channel to ground treatment", position: 'right', utility: 'sewage' },
+  { angle: 180, text: "Multiple rotary unions around ring perimeter provide N+1 redundancy", position: 'top' },
+  { angle: 225, text: "Power transfers through slip rings in rotary union assembly", position: 'left', utility: 'electricity' },
+  { angle: 270, text: "Fiber optic channels enable high-speed data with minimal loss", position: 'bottom-right', utility: 'data' },
+  { angle: 315, text: "Ring completes 360° rotation - utilities never wrap or twist", position: 'top-left' },
 ];
 
 // Explanation Bubble Component
@@ -472,7 +522,7 @@ export default function InfrastructurePage({ isDarkMode }: InfrastructurePagePro
   const visibleSteps = getVisibleSteps(rotationAngle);
 
   return (
-    <div className={`min-h-screen transition-colors duration-700 ${
+    <div className={`h-screen overflow-y-auto transition-colors duration-700 ${
       isDarkMode ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900'
     }`}>
       <div className="max-w-7xl mx-auto px-4 py-12">
@@ -515,7 +565,7 @@ export default function InfrastructurePage({ isDarkMode }: InfrastructurePagePro
               : 'linear-gradient(180deg, #e0f2fe 0%, #f0f9ff 100%)'
           }}>
             <Canvas
-              camera={{ position: [80, 20, 80], fov: 50 }}
+              camera={{ position: [60, 5, 70], fov: 50 }}
               shadows
             >
               <RotaryUnionScene
@@ -579,13 +629,50 @@ export default function InfrastructurePage({ isDarkMode }: InfrastructurePagePro
           <div className={`mt-6 p-4 rounded-lg border-l-4 ${
             isDarkMode ? 'bg-slate-800/50 border-cyan-500' : 'bg-cyan-50 border-cyan-400'
           }`}>
-            <h3 className="font-semibold mb-2">How It Works</h3>
+            <h3 className="font-semibold mb-2">How It Works - Cross-Section View</h3>
             <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-              The rotary union maintains continuous utility connections between stationary ground infrastructure
-              and the rotating ring. Watch how water (blue), sewage (gray), electricity (yellow), and data (purple)
-              flow through sealed channels that rotate independently. Each utility has dedicated passages that prevent
-              cross-contamination while allowing 360-degree rotation without cable wrapping or pipe twisting.
+              This cross-section shows utilities flowing UP from stationary ground infrastructure, THROUGH the rotary union
+              (like a bearing with multiple sealed channels), and INTO the rotating ring section. The rotary union is positioned
+              at the EDGE/BASE of the ring where it meets the ground - think of it like a giant lazy susan with utilities coming
+              up through the connection point. The ring spins horizontally while utilities flow continuously without cable wrapping
+              or pipe twisting.
             </p>
+          </div>
+        </div>
+
+        {/* YouTube Video Card - Prominent */}
+        <div className={`p-6 rounded-xl border-2 mb-8 ${
+          isDarkMode ? 'bg-gradient-to-br from-red-900/30 to-red-800/20 border-red-600' : 'bg-gradient-to-br from-red-50 to-orange-50 border-red-400'
+        }`}>
+          <div className="flex items-center gap-4">
+            <div className={`flex-shrink-0 w-16 h-16 rounded-full flex items-center justify-center ${
+              isDarkMode ? 'bg-red-600' : 'bg-red-500'
+            }`}>
+              <svg className="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-xl font-bold mb-2">Watch How Multi-Passage Rotary Unions Work</h3>
+              <p className={`text-sm mb-3 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                See a real industrial rotary union in action - the same technology that would enable rotating city infrastructure
+              </p>
+              <a
+                href="https://www.youtube.com/watch?v=IOLcnCO3iOM"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold transition-all transform hover:scale-105 ${
+                  isDarkMode
+                    ? 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-900/50'
+                    : 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/30'
+                }`}
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+                Watch Video on YouTube
+              </a>
+            </div>
           </div>
         </div>
 
@@ -677,26 +764,6 @@ export default function InfrastructurePage({ isDarkMode }: InfrastructurePagePro
           </div>
         </div>
 
-        {/* Technical Reference */}
-        <div className={`mt-8 p-6 rounded-xl border ${
-          isDarkMode ? 'bg-indigo-900/20 border-indigo-700' : 'bg-indigo-50 border-indigo-200'
-        }`}>
-          <h4 className="font-semibold mb-2 flex items-center gap-2">
-            <span>Technical Reference</span>
-          </h4>
-          <p className={`text-sm ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-            Watch: <a
-              href="https://www.youtube.com/watch?v=IOLcnCO3iOM"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`underline hover:no-underline ${isDarkMode ? 'text-sky-400' : 'text-sky-600'}`}
-            >
-              Kadant Multi-Passage Rotary Union Overview
-            </a>
-            <span className="mx-2">|</span>
-            Learn how rotary unions enable fluid and electrical transfer between stationary and rotating components in industrial applications.
-          </p>
-        </div>
       </div>
     </div>
   );
