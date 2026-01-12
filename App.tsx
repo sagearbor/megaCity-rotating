@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { ArchitecturalScene } from './components/ArchitecturalScene';
 import { ControlPanel } from './components/ControlPanel';
 import { AnalysisModal } from './components/AnalysisModal';
-import { RingConfig, WalkwayConfig, SimulationState, AIAnalysisResult, UmbilicalTowerConfig } from './types';
+import { RingConfig, WalkwayConfig, SimulationState, AIAnalysisResult, UmbilicalTowerConfig, HoverInfo } from './types';
 import { analyzeStructure, generateLore } from './services/geminiService';
 import { ChevronDown, Activity, Info, X } from 'lucide-react';
 
@@ -180,6 +180,7 @@ export default function App() {
   const [aiResult, setAiResult] = useState<AIAnalysisResult | null>(null);
   
   const [resetCameraTrigger, setResetCameraTrigger] = useState(0);
+  const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
 
   const visibleWalkways = useMemo(() => {
     return walkways.filter(w => {
@@ -230,6 +231,7 @@ export default function App() {
             showSolarPanels={showSolarPanels}
             showRooftopAmenities={showRooftopAmenities}
             showGroundAmenities={showGroundAmenities}
+            onHover={setHoverInfo}
          />
       </div>
 
@@ -335,12 +337,52 @@ export default function App() {
         )}
       </div>
 
-      <AnalysisModal 
+      <AnalysisModal
         isOpen={aiModalOpen}
         onClose={() => setAiModalOpen(false)}
         isLoading={aiLoading}
         data={aiResult}
       />
+
+      {/* Hover Tooltip */}
+      {hoverInfo && (
+        <div
+          className={`fixed z-50 pointer-events-none px-4 py-3 rounded-lg shadow-xl border max-w-xs ${
+            isDarkMode
+              ? 'bg-slate-900/95 border-slate-700 text-white'
+              : 'bg-white/95 border-slate-200 text-slate-900'
+          }`}
+          style={{
+            left: Math.min(hoverInfo.position.x + 15, window.innerWidth - 280),
+            top: Math.min(hoverInfo.position.y + 15, window.innerHeight - 120),
+          }}
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <span className={`w-2 h-2 rounded-full ${
+              hoverInfo.type === 'rooftop-garden' ? 'bg-green-500' :
+              hoverInfo.type === 'rooftop-restaurant' ? 'bg-orange-500' :
+              hoverInfo.type === 'pool' ? 'bg-sky-500' :
+              hoverInfo.type === 'soccer' || hoverInfo.type === 'baseball' ? 'bg-emerald-500' :
+              hoverInfo.type === 'forest' || hoverInfo.type === 'woods' ? 'bg-green-700' :
+              hoverInfo.type === 'stream' ? 'bg-blue-400' :
+              hoverInfo.type === 'tunnel' ? 'bg-slate-500' :
+              hoverInfo.type === 'bridge' ? 'bg-slate-400' :
+              hoverInfo.type === 'solar-canopy' ? 'bg-indigo-500' :
+              hoverInfo.type === 'umbilical' ? 'bg-purple-500' :
+              'bg-slate-400'
+            }`} />
+            <h4 className="font-semibold text-sm">{hoverInfo.name}</h4>
+          </div>
+          <p className={`text-xs leading-relaxed ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+            {hoverInfo.description}
+          </p>
+          {hoverInfo.details && (
+            <p className={`text-xs mt-1 font-mono ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              {hoverInfo.details}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

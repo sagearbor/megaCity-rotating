@@ -97,7 +97,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                 <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
                 Rotunda
                 </h1>
-                <p className={`text-xs mt-1 ${subText}`}>Procedural Kinetic City <span className="opacity-60">v0.02</span></p>
+                <p className={`text-xs mt-1 ${subText}`}>Procedural Kinetic City <span className="opacity-60">v0.03</span></p>
             </div>
             <button 
                 onClick={() => setIsDarkMode(!isDarkMode)}

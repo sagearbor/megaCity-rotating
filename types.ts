@@ -45,3 +45,11 @@ export interface AIAnalysisResult {
   content: string;
   type: 'structural' | 'philosophical' | 'logistical';
 }
+
+export interface HoverInfo {
+  type: 'rooftop-garden' | 'rooftop-restaurant' | 'pool' | 'soccer' | 'baseball' | 'forest' | 'woods' | 'stream' | 'tunnel' | 'bridge' | 'solar-canopy' | 'umbilical' | 'ring' | 'skatepark' | 'outdoor-gym' | 'dog-park' | 'koi-pond' | 'food-truck' | 'farmers-market' | 'basketball' | 'picnic' | 'fountain' | 'botanical-garden' | 'mini-golf';
+  name: string;
+  description: string;
+  details?: string;
+  position: { x: number; y: number };
+}
