@@ -812,6 +812,7 @@ const ShowcasePeople: React.FC<ShowcasePeopleProps> = ({
     const showcaseAngle = 0; // angle 0 for showcase area
     const bridgeLength = ring3InnerRadius - ring2OuterRadius;
     const bridgeMid = ring2OuterRadius + bridgeLength / 2;
+    const groundMid = bridgeMid; // Same as bridgeMid - the midpoint between Ring 2 and Ring 3
     const groundY = 2;
     const rooftopY = ring2Height + 2;
 
