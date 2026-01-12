@@ -161,6 +161,10 @@ export default function App() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [globalOpacity, setGlobalOpacity] = useState(1.0);
   const [showUtilities, setShowUtilities] = useState(false);
+  const [showTunnels, setShowTunnels] = useState(true);
+  const [showSolarPanels, setShowSolarPanels] = useState(true);
+  const [showRooftopAmenities, setShowRooftopAmenities] = useState(true);
+  const [showGroundAmenities, setShowGroundAmenities] = useState(true);
 
   const [visibleFloorGroups, setVisibleFloorGroups] = useState({
     low: true,
@@ -222,6 +226,10 @@ export default function App() {
             isDarkMode={isDarkMode}
             globalOpacity={globalOpacity}
             showUtilities={showUtilities}
+            showTunnels={showTunnels}
+            showSolarPanels={showSolarPanels}
+            showRooftopAmenities={showRooftopAmenities}
+            showGroundAmenities={showGroundAmenities}
          />
       </div>
 
@@ -242,6 +250,14 @@ export default function App() {
         setGlobalOpacity={setGlobalOpacity}
         showUtilities={showUtilities}
         setShowUtilities={setShowUtilities}
+        showTunnels={showTunnels}
+        setShowTunnels={setShowTunnels}
+        showSolarPanels={showSolarPanels}
+        setShowSolarPanels={setShowSolarPanels}
+        showRooftopAmenities={showRooftopAmenities}
+        setShowRooftopAmenities={setShowRooftopAmenities}
+        showGroundAmenities={showGroundAmenities}
+        setShowGroundAmenities={setShowGroundAmenities}
       />
 
       {/* Top Right: About / Mega Structure Info */}

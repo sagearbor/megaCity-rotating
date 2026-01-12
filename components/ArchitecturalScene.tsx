@@ -12,11 +12,15 @@ interface SceneProps {
   isDarkMode: boolean;
   globalOpacity: number;
   showUtilities?: boolean;
+  showTunnels?: boolean;
+  showRooftopAmenities?: boolean;
+  showGroundAmenities?: boolean;
+  showSolarPanels?: boolean;
 }
 
 const FLOOR_HEIGHT = 4; // meters
 
-const CityRing: React.FC<{ ring: RingConfig; simState: SimulationState; isDarkMode: boolean; globalOpacity: number }> = ({ ring, simState, isDarkMode, globalOpacity }) => {
+const CityRing: React.FC<{ ring: RingConfig; simState: SimulationState; isDarkMode: boolean; globalOpacity: number; showRooftopAmenities?: boolean }> = ({ ring, simState, isDarkMode, globalOpacity, showRooftopAmenities = true }) => {
   const meshRef = useRef<THREE.Group>(null);
   
   useFrame((state, delta) => {
@@ -148,6 +152,24 @@ const CityRing: React.FC<{ ring: RingConfig; simState: SimulationState; isDarkMo
                      <planeGeometry args={[10, ring.height - 10]} />
                      <meshStandardMaterial color="#fbbf24" emissive="#fbbf24" emissiveIntensity={isDarkMode ? 1 : 0} transparent opacity={0.5} />
                 </mesh>
+
+                {/* Rooftop Amenities - deterministic based on segment index */}
+                {showRooftopAmenities && ring.sectionCount > 1 && (
+                    <>
+                        {i % 3 === 0 && (
+                            <mesh position={[ring.outerRadius - 10, ring.height + 2, 0]}>
+                                <boxGeometry args={[20, 1, 15]} />
+                                <meshStandardMaterial color="#22c55e" roughness={0.9} />
+                            </mesh>
+                        )}
+                        {i % 4 === 1 && (
+                            <mesh position={[ring.outerRadius - 35, ring.height + 2, 0]}>
+                                <boxGeometry args={[15, 1, 12]} />
+                                <meshStandardMaterial color="#f97316" emissive="#f97316" emissiveIntensity={isDarkMode ? 0.3 : 0} roughness={0.7} />
+                            </mesh>
+                        )}
+                    </>
+                )}
             </group>
         ))}
 
@@ -172,7 +194,7 @@ const CityRing: React.FC<{ ring: RingConfig; simState: SimulationState; isDarkMo
   );
 };
 
-const StaticBridge: React.FC<{ config: WalkwayConfig, rings: RingConfig[], isDarkMode: boolean }> = ({ config, rings, isDarkMode }) => {
+const StaticBridge: React.FC<{ config: WalkwayConfig, rings: RingConfig[], isDarkMode: boolean, showSolarPanels?: boolean }> = ({ config, rings, isDarkMode, showSolarPanels = true }) => {
     const source = rings.find(r => r.id === config.fromRingId);
     const target = rings.find(r => r.id === config.toRingId);
     if (!source || !target) return null;
@@ -183,7 +205,7 @@ const StaticBridge: React.FC<{ config: WalkwayConfig, rings: RingConfig[], isDar
     const midRadius = startRadius + length / 2;
     const bridgeY = config.floor * FLOOR_HEIGHT;
     const angleRad = (config.angleOffset * Math.PI) / 180;
-    
+
     const structureColor = isDarkMode ? "#cbd5e1" : "#64748b";
     const glassColor = isDarkMode ? "#94a3b8" : "#bae6fd";
     const pillarColor = isDarkMode ? "#334155" : "#94a3b8";
@@ -196,12 +218,27 @@ const StaticBridge: React.FC<{ config: WalkwayConfig, rings: RingConfig[], isDar
                 <meshStandardMaterial color={structureColor} metalness={0.5} roughness={0.5} />
                 <Edges color={isDarkMode ? "#475569" : "#cbd5e1"} />
             </mesh>
-            
+
             {/* Glass */}
              <mesh position={[midRadius, bridgeY + 2, 0]}>
                 <boxGeometry args={[length, 4, config.width - 2]} />
                 <meshStandardMaterial color={glassColor} transparent opacity={0.4} metalness={0.8} />
             </mesh>
+
+            {/* Solar Panel Canopy */}
+            {showSolarPanels && (
+                <mesh position={[midRadius, bridgeY + 5, 0]} rotation={[0.05, 0, 0]}>
+                    <boxGeometry args={[length + 8, 0.5, config.width + 4]} />
+                    <meshStandardMaterial
+                        color={isDarkMode ? "#1e1b4b" : "#312e81"}
+                        metalness={0.9}
+                        roughness={0.2}
+                        transparent
+                        opacity={0.85}
+                    />
+                    <Edges color={isDarkMode ? "#6366f1" : "#4f46e5"} />
+                </mesh>
+            )}
 
             {/* Pillar */}
             <mesh position={[midRadius, bridgeY / 2, 0]}>
@@ -220,6 +257,66 @@ const StaticBridge: React.FC<{ config: WalkwayConfig, rings: RingConfig[], isDar
             </mesh>
         </group>
     );
+};
+
+const GroundAmenities: React.FC<{
+    innerRadius: number;
+    outerRadius: number;
+    index: number;
+    isDarkMode: boolean;
+}> = ({ innerRadius, outerRadius, index, isDarkMode }) => {
+    const midRadius = (innerRadius + outerRadius) / 2;
+    const gapWidth = outerRadius - innerRadius;
+
+    // Place amenities at cardinal directions
+    const amenities = [];
+
+    // Soccer field at 0 degrees
+    amenities.push(
+        <group key="soccer" position={[midRadius, 1, 0]}>
+            <mesh rotation={[-Math.PI/2, 0, 0]}>
+                <planeGeometry args={[gapWidth * 0.7, 50]} />
+                <meshStandardMaterial color="#166534" roughness={0.95} />
+            </mesh>
+            {/* Field lines */}
+            <mesh rotation={[-Math.PI/2, 0, 0]} position={[0, 0.1, 0]}>
+                <planeGeometry args={[gapWidth * 0.65, 45]} />
+                <meshStandardMaterial color="#22c55e" roughness={0.9} />
+            </mesh>
+        </group>
+    );
+
+    // Swimming pool at 90 degrees
+    amenities.push(
+        <group key="pool" position={[0, 1, midRadius]} rotation={[0, Math.PI/2, 0]}>
+            <mesh rotation={[-Math.PI/2, 0, 0]}>
+                <planeGeometry args={[gapWidth * 0.5, 30]} />
+                <meshStandardMaterial color="#0ea5e9" roughness={0.1} metalness={0.3} />
+            </mesh>
+        </group>
+    );
+
+    // Forest at 180 degrees
+    amenities.push(
+        <group key="forest" position={[-midRadius, 1, 0]}>
+            <mesh rotation={[-Math.PI/2, 0, 0]}>
+                <planeGeometry args={[gapWidth * 0.8, 60]} />
+                <meshStandardMaterial color="#14532d" roughness={1} />
+            </mesh>
+        </group>
+    );
+
+    // Baseball at 270 degrees
+    amenities.push(
+        <group key="baseball" position={[0, 1, -midRadius]} rotation={[0, -Math.PI/2, 0]}>
+            <mesh rotation={[-Math.PI/2, 0, Math.PI/4]}>
+                <circleGeometry args={[25, 4, 0, Math.PI/2]} />
+                <meshStandardMaterial color="#92400e" roughness={0.9} />
+            </mesh>
+        </group>
+    );
+
+    return <group>{amenities}</group>;
 };
 
 const UmbilicalTower: React.FC<{
@@ -284,7 +381,66 @@ const UmbilicalTower: React.FC<{
   );
 };
 
-const SceneContent: React.FC<SceneProps> = ({ rings, walkways, simState, resetTrigger, isDarkMode, globalOpacity, showUtilities = false }) => {
+const TunnelSystem: React.FC<{
+    rings: RingConfig[];
+    isDarkMode: boolean;
+}> = ({ rings, isDarkMode }) => {
+    const tunnelColor = isDarkMode ? "#334155" : "#64748b";
+    const tunnelEntryColor = isDarkMode ? "#475569" : "#94a3b8";
+
+    return (
+        <group>
+            {rings.slice(1).map((ring, i) => {
+                // Create 4 tunnels per ring at cardinal directions
+                const tunnels = [0, 90, 180, 270].map((angle, j) => {
+                    const angleRad = (angle * Math.PI) / 180;
+                    const x = Math.cos(angleRad) * ring.innerRadius;
+                    const z = Math.sin(angleRad) * ring.innerRadius;
+
+                    // Ring width to tunnel under
+                    const ringWidth = ring.outerRadius - ring.innerRadius;
+
+                    return (
+                        <group key={`tunnel-${ring.id}-${j}`} position={[x, -15, z]} rotation={[0, -angleRad, 0]}>
+                            {/* Main Tunnel Tube */}
+                            <mesh rotation={[0, 0, Math.PI/2]}>
+                                <cylinderGeometry args={[12, 12, ringWidth + 40, 16]} />
+                                <meshStandardMaterial
+                                    color={tunnelColor}
+                                    side={THREE.DoubleSide}
+                                    metalness={0.3}
+                                    roughness={0.7}
+                                />
+                            </mesh>
+
+                            {/* Tunnel Entry Portal (inner side) */}
+                            <mesh position={[-ringWidth/2 - 20, 0, 0]} rotation={[0, Math.PI/2, 0]}>
+                                <ringGeometry args={[8, 14, 16]} />
+                                <meshStandardMaterial color={tunnelEntryColor} />
+                            </mesh>
+
+                            {/* Tunnel Entry Portal (outer side) */}
+                            <mesh position={[ringWidth/2 + 20, 0, 0]} rotation={[0, -Math.PI/2, 0]}>
+                                <ringGeometry args={[8, 14, 16]} />
+                                <meshStandardMaterial color={tunnelEntryColor} />
+                            </mesh>
+
+                            {/* Rail track indicator */}
+                            <mesh position={[0, -8, 0]} rotation={[0, 0, Math.PI/2]}>
+                                <boxGeometry args={[2, ringWidth + 40, 6]} />
+                                <meshStandardMaterial color="#78716c" metalness={0.8} roughness={0.3} />
+                            </mesh>
+                        </group>
+                    );
+                });
+
+                return <group key={`tunnels-${ring.id}`}>{tunnels}</group>;
+            })}
+        </group>
+    );
+};
+
+const SceneContent: React.FC<SceneProps> = ({ rings, walkways, simState, resetTrigger, isDarkMode, globalOpacity, showUtilities = false, showTunnels = false, showRooftopAmenities = true, showGroundAmenities = true, showSolarPanels = true }) => {
   const controlsRef = useRef<any>(null);
 
   useEffect(() => {
@@ -328,20 +484,30 @@ const SceneContent: React.FC<SceneProps> = ({ rings, walkways, simState, resetTr
            hole.absarc(0, 0, ring.outerRadius, 0, Math.PI*2, true);
            shape.holes.push(hole);
            const geo = new THREE.ShapeGeometry(shape);
-           
+
            return (
-            <mesh key={`park-${i}`} geometry={geo} rotation={[-Math.PI/2, 0, 0]} position={[0, 0.5, 0]}>
-                 <meshStandardMaterial color={isDarkMode ? "#064e3b" : "#bbf7d0"} roughness={1} />
-             </mesh>
+            <group key={`park-${i}`}>
+                <mesh geometry={geo} rotation={[-Math.PI/2, 0, 0]} position={[0, 0.5, 0]}>
+                    <meshStandardMaterial color={isDarkMode ? "#064e3b" : "#bbf7d0"} roughness={1} />
+                </mesh>
+                {showGroundAmenities && (
+                    <GroundAmenities
+                        innerRadius={ring.outerRadius}
+                        outerRadius={nextRing.innerRadius}
+                        index={i}
+                        isDarkMode={isDarkMode}
+                    />
+                )}
+            </group>
            );
       })}
 
       {rings.map(ring => (
-        <CityRing key={ring.id} ring={ring} simState={simState} isDarkMode={isDarkMode} globalOpacity={globalOpacity} />
+        <CityRing key={ring.id} ring={ring} simState={simState} isDarkMode={isDarkMode} globalOpacity={globalOpacity} showRooftopAmenities={showRooftopAmenities} />
       ))}
 
       {walkways.map(w => (
-          <StaticBridge key={w.id} config={w} rings={rings} isDarkMode={isDarkMode} />
+          <StaticBridge key={w.id} config={w} rings={rings} isDarkMode={isDarkMode} showSolarPanels={showSolarPanels} />
       ))}
 
       {/* Umbilical Towers */}
@@ -356,6 +522,9 @@ const SceneContent: React.FC<SceneProps> = ({ rings, walkways, simState, resetTr
           />
         ))
       )}
+
+      {/* Underground Transit Tunnels */}
+      {showTunnels && <TunnelSystem rings={rings} isDarkMode={isDarkMode} />}
 
       <OrbitControls 
         ref={controlsRef}

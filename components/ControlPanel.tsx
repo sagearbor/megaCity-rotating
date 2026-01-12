@@ -18,6 +18,14 @@ interface ControlPanelProps {
   setGlobalOpacity: React.Dispatch<React.SetStateAction<number>>;
   showUtilities: boolean;
   setShowUtilities: React.Dispatch<React.SetStateAction<boolean>>;
+  showTunnels: boolean;
+  setShowTunnels: React.Dispatch<React.SetStateAction<boolean>>;
+  showSolarPanels: boolean;
+  setShowSolarPanels: React.Dispatch<React.SetStateAction<boolean>>;
+  showRooftopAmenities: boolean;
+  setShowRooftopAmenities: React.Dispatch<React.SetStateAction<boolean>>;
+  showGroundAmenities: boolean;
+  setShowGroundAmenities: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -25,7 +33,11 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   visibleFloorGroups, setVisibleFloorGroups,
   isDarkMode, setIsDarkMode,
   globalOpacity, setGlobalOpacity,
-  showUtilities, setShowUtilities
+  showUtilities, setShowUtilities,
+  showTunnels, setShowTunnels,
+  showSolarPanels, setShowSolarPanels,
+  showRooftopAmenities, setShowRooftopAmenities,
+  showGroundAmenities, setShowGroundAmenities
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -85,7 +97,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                 <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
                 Rotunda
                 </h1>
-                <p className={`text-xs mt-1 ${subText}`}>Procedural Kinetic City</p>
+                <p className={`text-xs mt-1 ${subText}`}>Procedural Kinetic City <span className="opacity-60">v0.02</span></p>
             </div>
             <button 
                 onClick={() => setIsDarkMode(!isDarkMode)}
@@ -197,7 +209,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                 </div>
 
                 {/* Utility Infrastructure Toggle */}
-                <div className="mt-4">
+                <div className="mt-4 space-y-2">
                     <button
                         onClick={() => setShowUtilities(!showUtilities)}
                         className={`w-full px-4 py-3 rounded border text-sm font-medium transition-colors ${
@@ -211,6 +223,70 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                     {showUtilities && (
                         <p className="text-xs text-slate-500 mt-2">
                             Multi-passage rotary unions for water, sewage, and power transfer
+                        </p>
+                    )}
+
+                    <button
+                        onClick={() => setShowSolarPanels(!showSolarPanels)}
+                        className={`w-full px-4 py-3 rounded border text-sm font-medium transition-colors ${
+                            showSolarPanels
+                                ? 'bg-violet-500/20 border-violet-500 text-violet-400'
+                                : 'bg-transparent border-slate-500/30 text-slate-500 hover:border-violet-500/50'
+                        }`}
+                    >
+                        {showSolarPanels ? '✓' : ''} Solar Canopies
+                    </button>
+                    {showSolarPanels && (
+                        <p className="text-xs text-slate-500 mt-2">
+                            Photovoltaic panels on bridge canopies for renewable energy generation
+                        </p>
+                    )}
+
+                    <button
+                        onClick={() => setShowTunnels(!showTunnels)}
+                        className={`w-full px-4 py-3 rounded border text-sm font-medium transition-colors ${
+                            showTunnels
+                                ? 'bg-amber-500/20 border-amber-500 text-amber-400'
+                                : 'bg-transparent border-slate-500/30 text-slate-500 hover:border-amber-500/50'
+                        }`}
+                    >
+                        {showTunnels ? '✓' : ''} Transit Tunnels
+                    </button>
+                    {showTunnels && (
+                        <p className="text-xs text-slate-500 mt-2">
+                            Underground transit tunnels for pedestrian, car, and rail movement between rings
+                        </p>
+                    )}
+
+                    <button
+                        onClick={() => setShowRooftopAmenities(!showRooftopAmenities)}
+                        className={`w-full px-4 py-3 rounded border text-sm font-medium transition-colors ${
+                            showRooftopAmenities
+                                ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400'
+                                : 'bg-transparent border-slate-500/30 text-slate-500 hover:border-emerald-500/50'
+                        }`}
+                    >
+                        {showRooftopAmenities ? '✓' : ''} Rooftop Life
+                    </button>
+                    {showRooftopAmenities && (
+                        <p className="text-xs text-slate-500 mt-2">
+                            Community gardens and dining areas on building rooftops
+                        </p>
+                    )}
+
+                    <button
+                        onClick={() => setShowGroundAmenities(!showGroundAmenities)}
+                        className={`w-full px-4 py-3 rounded border text-sm font-medium transition-colors ${
+                            showGroundAmenities
+                                ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400'
+                                : 'bg-transparent border-slate-500/30 text-slate-500 hover:border-cyan-500/50'
+                        }`}
+                    >
+                        {showGroundAmenities ? '✓' : ''} Ground Parks
+                    </button>
+                    {showGroundAmenities && (
+                        <p className="text-xs text-slate-500 mt-2">
+                            Recreation facilities: sports fields, pools, and natural areas
                         </p>
                     )}
                 </div>
