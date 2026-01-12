@@ -2,15 +2,16 @@ import React, { useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Stars, Text, Edges, Cloud, Sky } from '@react-three/drei';
 import * as THREE from 'three';
-import { RingConfig, WalkwayConfig, SimulationState } from '../types';
+import { RingConfig, WalkwayConfig, SimulationState, UmbilicalTowerConfig } from '../types';
 
 interface SceneProps {
   rings: RingConfig[];
-  walkways: WalkwayConfig[]; 
+  walkways: WalkwayConfig[];
   simState: SimulationState;
   resetTrigger: number;
   isDarkMode: boolean;
   globalOpacity: number;
+  showUtilities?: boolean;
 }
 
 const FLOOR_HEIGHT = 4; // meters
@@ -221,7 +222,69 @@ const StaticBridge: React.FC<{ config: WalkwayConfig, rings: RingConfig[], isDar
     );
 };
 
-const SceneContent: React.FC<SceneProps> = ({ rings, walkways, simState, resetTrigger, isDarkMode, globalOpacity }) => {
+const UmbilicalTower: React.FC<{
+  config: UmbilicalTowerConfig;
+  ring: RingConfig;
+  simState: SimulationState;
+  isDarkMode: boolean;
+}> = ({ config, ring, simState, isDarkMode }) => {
+  const meshRef = useRef<THREE.Group>(null);
+
+  useFrame((state, delta) => {
+    if (meshRef.current && simState.isPlaying) {
+      const radPerSec = (ring.rotationSpeed / 60) * (Math.PI / 180);
+      meshRef.current.rotation.y += radPerSec * delta * simState.timeScale;
+    }
+  });
+
+  const angleRad = (config.anglePosition * Math.PI) / 180;
+  const towerColor = config.status === 'active' ? (isDarkMode ? "#6366f1" : "#3b82f6") :
+                     config.status === 'maintenance' ? "#fbbf24" : "#6b7280";
+  const pipeColor = isDarkMode ? "#475569" : "#94a3b8";
+
+  return (
+    <group ref={meshRef} rotation={[0, -angleRad, 0]}>
+      {/* Main Tower Body at ring inner edge */}
+      <mesh position={[config.innerRadius, config.height / 2, 0]}>
+        <cylinderGeometry args={[8, 12, config.height, 8]} />
+        <meshStandardMaterial
+          color={towerColor}
+          metalness={0.7}
+          roughness={0.3}
+          emissive={config.status === 'active' ? towerColor : '#000000'}
+          emissiveIntensity={0.2}
+        />
+        <Edges color={isDarkMode ? "#1e293b" : "#e2e8f0"} />
+      </mesh>
+
+      {/* Rotary Union Housing (at base) */}
+      <mesh position={[config.innerRadius, 0, 0]}>
+        <cylinderGeometry args={[15, 15, 4, 12]} />
+        <meshStandardMaterial color={pipeColor} metalness={0.8} roughness={0.2} />
+      </mesh>
+
+      {/* Multi-passage indicators (3 rings showing channels) */}
+      {[0.3, 0.5, 0.7].map((heightRatio, i) => (
+        <mesh key={i} position={[config.innerRadius, config.height * heightRatio, 0]}>
+          <torusGeometry args={[10, 0.8, 8, 16]} />
+          <meshStandardMaterial
+            color={i === 0 ? "#3b82f6" : i === 1 ? "#84cc16" : "#f59e0b"}
+            metalness={0.9}
+            roughness={0.1}
+          />
+        </mesh>
+      ))}
+
+      {/* Ground Connection Pipe */}
+      <mesh position={[config.innerRadius / 2, -2, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[4, 4, config.innerRadius, 8]} />
+        <meshStandardMaterial color={pipeColor} metalness={0.6} roughness={0.4} />
+      </mesh>
+    </group>
+  );
+};
+
+const SceneContent: React.FC<SceneProps> = ({ rings, walkways, simState, resetTrigger, isDarkMode, globalOpacity, showUtilities = false }) => {
   const controlsRef = useRef<any>(null);
 
   useEffect(() => {
@@ -280,6 +343,19 @@ const SceneContent: React.FC<SceneProps> = ({ rings, walkways, simState, resetTr
       {walkways.map(w => (
           <StaticBridge key={w.id} config={w} rings={rings} isDarkMode={isDarkMode} />
       ))}
+
+      {/* Umbilical Towers */}
+      {showUtilities && rings.map(ring =>
+        ring.umbilicals.map(umbilical => (
+          <UmbilicalTower
+            key={umbilical.id}
+            config={umbilical}
+            ring={ring}
+            simState={simState}
+            isDarkMode={isDarkMode}
+          />
+        ))
+      )}
 
       <OrbitControls 
         ref={controlsRef}

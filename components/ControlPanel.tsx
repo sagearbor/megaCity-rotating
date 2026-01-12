@@ -16,13 +16,16 @@ interface ControlPanelProps {
   setIsDarkMode: React.Dispatch<React.SetStateAction<boolean>>;
   globalOpacity: number;
   setGlobalOpacity: React.Dispatch<React.SetStateAction<number>>;
+  showUtilities: boolean;
+  setShowUtilities: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export const ControlPanel: React.FC<ControlPanelProps> = ({ 
+export const ControlPanel: React.FC<ControlPanelProps> = ({
   rings, setRings, simState, setSimState, onGenerateLore, onAskAI, onReset,
   visibleFloorGroups, setVisibleFloorGroups,
   isDarkMode, setIsDarkMode,
-  globalOpacity, setGlobalOpacity
+  globalOpacity, setGlobalOpacity,
+  showUtilities, setShowUtilities
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -48,7 +51,9 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
       rotationSpeed: (Math.random() - 0.5) * 5,
       color: "#e2e8f0",
       floorCount: 15,
-      sectionCount: 30
+      sectionCount: 30,
+      umbilicalCount: 0,
+      umbilicals: []
     };
     setRings([...rings, newRing]);
   };
@@ -189,6 +194,25 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                             {key}
                         </button>
                     ))}
+                </div>
+
+                {/* Utility Infrastructure Toggle */}
+                <div className="mt-4">
+                    <button
+                        onClick={() => setShowUtilities(!showUtilities)}
+                        className={`w-full px-4 py-3 rounded border text-sm font-medium transition-colors ${
+                            showUtilities
+                                ? 'bg-indigo-500/20 border-indigo-500 text-indigo-400'
+                                : 'bg-transparent border-slate-500/30 text-slate-500 hover:border-indigo-500/50'
+                        }`}
+                    >
+                        {showUtilities ? '✓' : ''} Umbilical Towers
+                    </button>
+                    {showUtilities && (
+                        <p className="text-xs text-slate-500 mt-2">
+                            Multi-passage rotary unions for water, sewage, and power transfer
+                        </p>
+                    )}
                 </div>
             </div>
 

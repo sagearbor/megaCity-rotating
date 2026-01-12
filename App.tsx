@@ -2,32 +2,73 @@ import React, { useState, useMemo } from 'react';
 import { ArchitecturalScene } from './components/ArchitecturalScene';
 import { ControlPanel } from './components/ControlPanel';
 import { AnalysisModal } from './components/AnalysisModal';
-import { RingConfig, WalkwayConfig, SimulationState, AIAnalysisResult } from './types';
+import { RingConfig, WalkwayConfig, SimulationState, AIAnalysisResult, UmbilicalTowerConfig } from './types';
 import { analyzeStructure, generateLore } from './services/geminiService';
 import { ChevronDown, Activity, Info, X } from 'lucide-react';
 
 const RING_WIDTH = 300;
 const GAP_WIDTH = 150;
-const BUILDING_HEIGHT = 60; 
+const BUILDING_HEIGHT = 60;
 const TARGET_EDGE_SPEED = 0.5; // m/s
 const TARGET_BRIDGE_SPACING = 80;
 const TARGET_SECTION_LENGTH = 400; // Target length of each building block in meters
+const TARGET_UMBILICAL_SPACING = 1500; // meters
+const MIN_UMBILICALS = 4;
+
+const calculateUmbilicalCount = (ringInnerRadius: number, ringOuterRadius: number): number => {
+  const midRadius = (ringInnerRadius + ringOuterRadius) / 2;
+  const circumference = 2 * Math.PI * midRadius;
+  const count = Math.max(MIN_UMBILICALS, Math.round(circumference / TARGET_UMBILICAL_SPACING));
+  return count % 2 === 0 ? count : count + 1;
+};
+
+const generateUmbilicals = (ring: RingConfig): UmbilicalTowerConfig[] => {
+  const umbilicals: UmbilicalTowerConfig[] = [];
+  const count = ring.umbilicalCount;
+  const angleStep = 360 / count;
+
+  // Calculate capacity per umbilical based on ring size
+  const ringArea = Math.PI * (ring.outerRadius ** 2 - ring.innerRadius ** 2);
+  const waterPerM2 = 150; // liters per day per square meter (residential estimate)
+  const powerPerM2 = 0.05; // MW per square meter
+
+  const totalWater = ringArea * waterPerM2;
+  const totalPower = ringArea * powerPerM2;
+
+  for (let i = 0; i < count; i++) {
+    umbilicals.push({
+      id: `${ring.id}-umb-${i}`,
+      ringId: ring.id,
+      anglePosition: i * angleStep,
+      innerRadius: ring.innerRadius,
+      height: ring.height,
+      waterCapacityLitersPerDay: totalWater / count,
+      powerCapacityMW: totalPower / count,
+      status: 'active'
+    });
+  }
+
+  return umbilicals;
+};
 
 const generateRings = (): RingConfig[] => {
   const rings: RingConfig[] = [];
   
   // Central Hub (Continuous, no sections)
-  rings.push({
+  const hubRing: RingConfig = {
     id: 'hub',
     name: 'Central Hub',
     innerRadius: 0,
     outerRadius: 500,
     height: 100,
     rotationSpeed: 0,
-    color: '#cbd5e1', 
+    color: '#cbd5e1',
     floorCount: 25,
-    sectionCount: 1
-  });
+    sectionCount: 1,
+    umbilicalCount: 0,
+    umbilicals: []
+  };
+  rings.push(hubRing);
 
   // 8 Concentric Rotating Rings
   let currentInner = 500;
@@ -47,19 +88,26 @@ const generateRings = (): RingConfig[] => {
     const speedDegMin = omegaRadSec * (180 / Math.PI) * 60;
     
     // Alternating directions
-    const direction = i % 2 === 0 ? -1 : 1; 
+    const direction = i % 2 === 0 ? -1 : 1;
 
-    rings.push({
+    const umbilicalCount = calculateUmbilicalCount(currentInner, outer);
+
+    const ring: RingConfig = {
       id: `r${ringNum}`,
       name: `Ring ${ringNum}`,
       innerRadius: currentInner,
       outerRadius: outer,
       height: BUILDING_HEIGHT,
       rotationSpeed: speedDegMin * direction,
-      color: i % 2 === 0 ? '#e2e8f0' : '#fdba74', 
+      color: i % 2 === 0 ? '#e2e8f0' : '#fdba74',
       floorCount: 15,
-      sectionCount: sectionCount
-    });
+      sectionCount: sectionCount,
+      umbilicalCount: umbilicalCount,
+      umbilicals: []
+    };
+
+    ring.umbilicals = generateUmbilicals(ring);
+    rings.push(ring);
 
     currentInner = outer + GAP_WIDTH;
   }
@@ -112,6 +160,7 @@ export default function App() {
   // Visual State
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [globalOpacity, setGlobalOpacity] = useState(1.0);
+  const [showUtilities, setShowUtilities] = useState(false);
 
   const [visibleFloorGroups, setVisibleFloorGroups] = useState({
     low: true,
@@ -165,20 +214,21 @@ export default function App() {
     <div className={`w-full h-screen relative overflow-hidden transition-colors duration-700 ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900'}`}>
       {/* 3D Scene Background */}
       <div className="absolute inset-0 z-0">
-         <ArchitecturalScene 
-            rings={rings} 
-            walkways={visibleWalkways} 
-            simState={simState} 
+         <ArchitecturalScene
+            rings={rings}
+            walkways={visibleWalkways}
+            simState={simState}
             resetTrigger={resetCameraTrigger}
             isDarkMode={isDarkMode}
             globalOpacity={globalOpacity}
+            showUtilities={showUtilities}
          />
       </div>
 
       {/* Main Control Panel (Left) */}
-      <ControlPanel 
-        rings={rings} 
-        setRings={setRings} 
+      <ControlPanel
+        rings={rings}
+        setRings={setRings}
         simState={simState}
         setSimState={setSimState}
         onGenerateLore={handleGenerateLore}
@@ -190,6 +240,8 @@ export default function App() {
         setIsDarkMode={setIsDarkMode}
         globalOpacity={globalOpacity}
         setGlobalOpacity={setGlobalOpacity}
+        showUtilities={showUtilities}
+        setShowUtilities={setShowUtilities}
       />
 
       {/* Top Right: About / Mega Structure Info */}
