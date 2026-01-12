@@ -1,19 +1,19 @@
 import React, { useState, useMemo } from 'react';
-import { ArchitecturalScene } from './components/ArchitecturalScene';
-import { ControlPanel } from './components/ControlPanel';
-import { AnalysisModal } from './components/AnalysisModal';
-import InfrastructurePage from './pages/InfrastructurePage';
-import { RingConfig, WalkwayConfig, SimulationState, AIAnalysisResult, UmbilicalTowerConfig, HoverInfo } from './types';
-import { analyzeStructure, generateLore } from './services/geminiService';
-import { ChevronDown, Activity, Info, X, Building2, Network } from 'lucide-react';
+import { ArchitecturalScene } from '../components/ArchitecturalScene';
+import { ControlPanel } from '../components/ControlPanel';
+import { AnalysisModal } from '../components/AnalysisModal';
+import { RingConfig, WalkwayConfig, SimulationState, AIAnalysisResult, UmbilicalTowerConfig, HoverInfo } from '../types';
+import { analyzeStructure, generateLore } from '../services/geminiService';
+import { ChevronDown, Activity, Info, X } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
 
 const RING_WIDTH = 300;
 const GAP_WIDTH = 150;
 const BUILDING_HEIGHT = 60;
-const TARGET_EDGE_SPEED = 0.5; // m/s
+const TARGET_EDGE_SPEED = 0.5;
 const TARGET_BRIDGE_SPACING = 80;
-const TARGET_SECTION_LENGTH = 400; // Target length of each building block in meters
-const TARGET_UMBILICAL_SPACING = 1500; // meters
+const TARGET_SECTION_LENGTH = 400;
+const TARGET_UMBILICAL_SPACING = 1500;
 const MIN_UMBILICALS = 4;
 
 const calculateUmbilicalCount = (ringInnerRadius: number, ringOuterRadius: number): number => {
@@ -28,10 +28,9 @@ const generateUmbilicals = (ring: RingConfig): UmbilicalTowerConfig[] => {
   const count = ring.umbilicalCount;
   const angleStep = 360 / count;
 
-  // Calculate capacity per umbilical based on ring size
   const ringArea = Math.PI * (ring.outerRadius ** 2 - ring.innerRadius ** 2);
-  const waterPerM2 = 150; // liters per day per square meter (residential estimate)
-  const powerPerM2 = 0.05; // MW per square meter
+  const waterPerM2 = 150;
+  const powerPerM2 = 0.05;
 
   const totalWater = ringArea * waterPerM2;
   const totalPower = ringArea * powerPerM2;
@@ -54,8 +53,7 @@ const generateUmbilicals = (ring: RingConfig): UmbilicalTowerConfig[] => {
 
 const generateRings = (): RingConfig[] => {
   const rings: RingConfig[] = [];
-  
-  // Central Hub (Continuous, no sections)
+
   const hubRing: RingConfig = {
     id: 'hub',
     name: 'Central Hub',
@@ -71,26 +69,21 @@ const generateRings = (): RingConfig[] => {
   };
   rings.push(hubRing);
 
-  // 8 Concentric Rotating Rings
   let currentInner = 500;
-  
+
   for (let i = 0; i < 8; i++) {
     const ringNum = i + 1;
     const outer = currentInner + RING_WIDTH;
     const avgRadius = (currentInner + outer) / 2;
     const circumference = 2 * Math.PI * avgRadius;
-    
-    // Calculate how many sections fit in this ring
+
     const idealSectionCount = Math.round(circumference / TARGET_SECTION_LENGTH);
-    // Ensure even number for symmetry, minimum 4
     const sectionCount = Math.max(4, idealSectionCount % 2 === 0 ? idealSectionCount : idealSectionCount + 1);
 
     const omegaRadSec = TARGET_EDGE_SPEED / avgRadius;
     const speedDegMin = omegaRadSec * (180 / Math.PI) * 60;
-    
-    // Alternating directions
-    const direction = i % 2 === 0 ? -1 : 1;
 
+    const direction = i % 2 === 0 ? -1 : 1;
     const umbilicalCount = calculateUmbilicalCount(currentInner, outer);
 
     const ring: RingConfig = {
@@ -117,19 +110,19 @@ const generateRings = (): RingConfig[] => {
 
 const generateWalkways = (rings: RingConfig[]): WalkwayConfig[] => {
   const walkways: WalkwayConfig[] = [];
-  
+
   for (let i = 0; i < rings.length - 1; i++) {
     const source = rings[i];
     const target = rings[i+1];
-    
+
     const gapMidRadius = (source.outerRadius + target.innerRadius) / 2;
     const circumference = 2 * Math.PI * gapMidRadius;
-    
+
     const bridgeCount = Math.max(20, Math.round(circumference / TARGET_BRIDGE_SPACING));
-    
+
     for (let b = 0; b < bridgeCount; b++) {
       const floor = 1 + (b % 12);
-      
+
       walkways.push({
         id: `br-${source.id}-${target.id}-${b}`,
         fromRingId: source.id,
@@ -148,8 +141,8 @@ const generateWalkways = (rings: RingConfig[]): WalkwayConfig[] => {
 const INITIAL_RINGS = generateRings();
 const INITIAL_WALKWAYS = generateWalkways(INITIAL_RINGS);
 
-export default function App() {
-  const [currentPage, setCurrentPage] = useState<'city' | 'infrastructure'>('city');
+export default function HomePage() {
+  const { isDarkMode, setIsDarkMode } = useTheme();
   const [rings, setRings] = useState<RingConfig[]>(INITIAL_RINGS);
   const [walkways] = useState<WalkwayConfig[]>(INITIAL_WALKWAYS);
 
@@ -159,8 +152,6 @@ export default function App() {
     currentTime: 0
   });
 
-  // Visual State
-  const [isDarkMode, setIsDarkMode] = useState(true);
   const [globalOpacity, setGlobalOpacity] = useState(1.0);
   const [showUtilities, setShowUtilities] = useState(false);
   const [showTunnels, setShowTunnels] = useState(true);
@@ -176,11 +167,11 @@ export default function App() {
 
   const [statusOpen, setStatusOpen] = useState(true);
   const [aboutOpen, setAboutOpen] = useState(false);
-  
+
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState<AIAnalysisResult | null>(null);
-  
+
   const [resetCameraTrigger, setResetCameraTrigger] = useState(0);
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
 
@@ -219,59 +210,8 @@ export default function App() {
 
   return (
     <div className={`w-full h-screen relative overflow-hidden transition-colors duration-700 ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900'}`}>
-      {/* Navigation Bar */}
-      <nav className={`absolute top-0 left-0 right-0 z-30 border-b backdrop-blur-md ${
-        isDarkMode ? 'bg-slate-900/90 border-slate-700' : 'bg-white/90 border-slate-200'
-      }`}>
-        <div className="flex items-center justify-between px-6 py-3">
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold">The Rotunda</h1>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setCurrentPage('city')}
-              className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${
-                currentPage === 'city'
-                  ? isDarkMode
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-indigo-500 text-white'
-                  : isDarkMode
-                    ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              <Building2 size={18} />
-              <span>City View</span>
-            </button>
-            <button
-              onClick={() => setCurrentPage('infrastructure')}
-              className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${
-                currentPage === 'infrastructure'
-                  ? isDarkMode
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-indigo-500 text-white'
-                  : isDarkMode
-                    ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              <Network size={18} />
-              <span>Infrastructure</span>
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      {/* Conditional Page Rendering */}
-      {currentPage === 'infrastructure' ? (
-        <div className="pt-16 h-full overflow-y-auto">
-          <InfrastructurePage isDarkMode={isDarkMode} />
-        </div>
-      ) : (
-        <>
-          {/* 3D Scene Background */}
-          <div className="absolute inset-0 z-0">
-            <ArchitecturalScene
+      <div className="absolute inset-0 z-0">
+         <ArchitecturalScene
             rings={rings}
             walkways={visibleWalkways}
             simState={simState}
@@ -287,8 +227,7 @@ export default function App() {
          />
       </div>
 
-          {/* Main Control Panel (Left) */}
-          <ControlPanel
+      <ControlPanel
         rings={rings}
         setRings={setRings}
         simState={simState}
@@ -314,9 +253,8 @@ export default function App() {
         setShowGroundAmenities={setShowGroundAmenities}
       />
 
-          {/* Top Right: About / Mega Structure Info */}
-          <div className="absolute top-6 right-6 z-20 flex flex-col items-end">
-         <button 
+      <div className="absolute top-6 right-6 z-20 flex flex-col items-end">
+         <button
             onClick={() => setAboutOpen(!aboutOpen)}
             className={`p-3 rounded-full shadow-lg transition-transform hover:scale-105 ${isDarkMode ? 'bg-indigo-600 text-white hover:bg-indigo-500' : 'bg-indigo-500 text-white hover:bg-indigo-600'}`}
             title="About The Rotunda"
@@ -331,15 +269,15 @@ export default function App() {
                 </h2>
                 <div className={`space-y-4 text-sm leading-relaxed ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
                     <p>
-                        A <strong className="text-sky-500">concentric city model</strong> designed to maximize density while minimizing transit times. 
+                        A <strong className="text-sky-500">concentric city model</strong> designed to maximize density while minimizing transit times.
                         Unlike linear cities, the Rotunda brings all points closer together through rotation.
                     </p>
-                    
+
                     <div>
                         <h4 className={`font-semibold mb-1 ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>Transit Mechanics</h4>
                         <p>
-                            Rings rotate in <span className="text-amber-500 font-mono">alternating directions</span>. 
-                            To travel, citizens step onto a static bridge, wait for their destination sector to align, and step off. 
+                            Rings rotate in <span className="text-amber-500 font-mono">alternating directions</span>.
+                            To travel, citizens step onto a static bridge, wait for their destination sector to align, and step off.
                             At 0.5 m/s, a new sector arrives every few minutes.
                         </p>
                     </div>
@@ -347,8 +285,8 @@ export default function App() {
                     <div>
                         <h4 className={`font-semibold mb-1 ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>Capacity</h4>
                         <p>
-                            With 8 active rings and average building height of 20 floors (simulated here as ~15), 
-                            this structure houses approximately <strong className="text-emerald-500">12 Million</strong> inhabitants 
+                            With 8 active rings and average building height of 20 floors (simulated here as approximately 15),
+                            this structure houses approximately <strong className="text-emerald-500">12 Million</strong> inhabitants
                             within a 5km radius.
                         </p>
                     </div>
@@ -357,9 +295,8 @@ export default function App() {
          )}
       </div>
 
-          {/* Bottom Right: Status Panel */}
-          <div className="absolute bottom-6 right-6 z-10 flex flex-col items-end">
-        <button 
+      <div className="absolute bottom-6 right-6 z-10 flex flex-col items-end">
+        <button
             onClick={() => setStatusOpen(!statusOpen)}
             className={`backdrop-blur-md border p-2 rounded-full mb-2 transition-colors shadow-lg ${isDarkMode ? 'bg-slate-900/90 border-amber-900/50 text-amber-500 hover:bg-slate-800' : 'bg-white/90 border-amber-200 text-amber-600 hover:bg-amber-50'}`}
             title="Toggle System Status"
@@ -389,15 +326,14 @@ export default function App() {
         )}
       </div>
 
-          <AnalysisModal
-            isOpen={aiModalOpen}
-            onClose={() => setAiModalOpen(false)}
-            isLoading={aiLoading}
-            data={aiResult}
-          />
+      <AnalysisModal
+        isOpen={aiModalOpen}
+        onClose={() => setAiModalOpen(false)}
+        isLoading={aiLoading}
+        data={aiResult}
+      />
 
-          {/* Hover Tooltip */}
-          {hoverInfo && (
+      {hoverInfo && (
         <div
           className={`fixed z-50 pointer-events-none px-4 py-3 rounded-lg shadow-xl border max-w-xs ${
             isDarkMode
@@ -433,9 +369,7 @@ export default function App() {
               {hoverInfo.details}
             </p>
           )}
-          </div>
-          )}
-        </>
+        </div>
       )}
     </div>
   );
