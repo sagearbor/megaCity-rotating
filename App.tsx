@@ -167,6 +167,7 @@ export default function App() {
   const [showSolarPanels, setShowSolarPanels] = useState(true);
   const [showRooftopAmenities, setShowRooftopAmenities] = useState(true);
   const [showGroundAmenities, setShowGroundAmenities] = useState(true);
+  const [showInfrastructure, setShowInfrastructure] = useState(false);
 
   const [visibleFloorGroups, setVisibleFloorGroups] = useState({
     low: true,
@@ -283,6 +284,7 @@ export default function App() {
             showSolarPanels={showSolarPanels}
             showRooftopAmenities={showRooftopAmenities}
             showGroundAmenities={showGroundAmenities}
+            showInfrastructure={showInfrastructure}
             onHover={setHoverInfo}
          />
       </div>
@@ -312,6 +314,8 @@ export default function App() {
         setShowRooftopAmenities={setShowRooftopAmenities}
         showGroundAmenities={showGroundAmenities}
         setShowGroundAmenities={setShowGroundAmenities}
+        showInfrastructure={showInfrastructure}
+        setShowInfrastructure={setShowInfrastructure}
       />
 
           {/* Top Right: About / Mega Structure Info */}

@@ -9,6 +9,7 @@ import { ShowcaseForest } from './ShowcaseForest';
 import { Ring12GapAmenities } from './Ring12GapAmenities';
 import { Ring34GapAmenities } from './Ring34GapAmenities';
 import ShowcaseBeacon from './ShowcaseBeacon';
+import InfrastructureOverlay from './InfrastructureOverlay';
 
 interface SceneProps {
   rings: RingConfig[];
@@ -22,6 +23,7 @@ interface SceneProps {
   showRooftopAmenities?: boolean;
   showGroundAmenities?: boolean;
   showSolarPanels?: boolean;
+  showInfrastructure?: boolean;
   onHover?: (info: HoverInfo | null) => void;
 }
 
@@ -1632,7 +1634,7 @@ const ShowcaseRooftopAmenities: React.FC<ShowcaseRooftopAmenitiesProps> = ({
   );
 };
 
-const SceneContent: React.FC<SceneProps> = ({ rings, walkways, simState, resetTrigger, isDarkMode, globalOpacity, showUtilities = false, showTunnels = false, showRooftopAmenities = true, showGroundAmenities = true, showSolarPanels = true, onHover }) => {
+const SceneContent: React.FC<SceneProps> = ({ rings, walkways, simState, resetTrigger, isDarkMode, globalOpacity, showUtilities = false, showTunnels = false, showRooftopAmenities = true, showGroundAmenities = true, showSolarPanels = true, showInfrastructure = false, onHover }) => {
   const controlsRef = useRef<any>(null);
 
   useEffect(() => {
@@ -1843,6 +1845,11 @@ const SceneContent: React.FC<SceneProps> = ({ rings, walkways, simState, resetTr
           position={[1175, 0, 0]}
           isDarkMode={isDarkMode}
         />
+      )}
+
+      {/* Infrastructure Overlay — water, sewage, power, waste, greywater */}
+      {showInfrastructure && (
+        <InfrastructureOverlay rings={rings} isDarkMode={isDarkMode} simState={simState} />
       )}
 
       <OrbitControls 
