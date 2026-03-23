@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import { ThreeEvent } from '@react-three/fiber';
+import * as THREE from 'three';
 import { HoverInfo } from '../types';
 
 interface ShowcaseDetailsProps {
@@ -143,75 +144,101 @@ export const ShowcaseDetails: React.FC<ShowcaseDetailsProps> = ({
     return items;
   }, [centerRadius, groundY]);
 
-  // Shared colors
+  // Extract bench and lamp data for instancing
+  const benches = useMemo(() => details.filter(d => d.type === 'bench'), [details]);
+  const lamps = useMemo(() => details.filter(d => d.type === 'lamp'), [details]);
+  const others = useMemo(() => details.filter(d => d.type !== 'bench' && d.type !== 'lamp'), [details]);
+
+  // InstancedMesh refs for benches
+  const benchRef = useRef<THREE.InstancedMesh>(null);
+  const benchGeo = useMemo(() => new THREE.BoxGeometry(2, 0.5, 0.5), []);
+  const benchMat = useMemo(() => new THREE.MeshStandardMaterial({ roughness: 0.9 }), []);
+
+  // InstancedMesh refs for lamp posts and lights
+  const lampPostRef = useRef<THREE.InstancedMesh>(null);
+  const lampLightRef = useRef<THREE.InstancedMesh>(null);
+  const lampPostGeo = useMemo(() => new THREE.CylinderGeometry(0.1, 0.1, 4, 6), []);
+  const lampLightGeo = useMemo(() => new THREE.SphereGeometry(0.3, 8, 6), []);
+
+  const signBaseColor = isDarkMode ? "#475569" : "#64748b";
   const lampColor = isDarkMode ? "#fbbf24" : "#f59e0b";
+
+  const lampPostMat = useMemo(() => new THREE.MeshStandardMaterial({ color: signBaseColor, roughness: 0.6, metalness: 0.4 }), [signBaseColor]);
+  const lampLightMat = useMemo(() => new THREE.MeshStandardMaterial({
+    color: lampColor,
+    emissive: lampColor,
+    emissiveIntensity: isDarkMode ? 0.8 : 0.2,
+  }), [lampColor, isDarkMode]);
+
+  // Set bench instance matrices
+  useEffect(() => {
+    if (benchRef.current && benches.length > 0) {
+      const mat = new THREE.Matrix4();
+      const pos = new THREE.Vector3();
+      const quat = new THREE.Quaternion();
+      const scl = new THREE.Vector3(1, 1, 1);
+      const euler = new THREE.Euler();
+      const col = new THREE.Color();
+
+      benches.forEach((b, i) => {
+        euler.set(0, b.rotation, 0);
+        quat.setFromEuler(euler);
+        pos.set(b.position[0], b.position[1], b.position[2]);
+        mat.compose(pos, quat, scl);
+        benchRef.current!.setMatrixAt(i, mat);
+        col.set(b.color || '#78350f');
+        benchRef.current!.setColorAt(i, col);
+      });
+      benchRef.current.instanceMatrix.needsUpdate = true;
+      if (benchRef.current.instanceColor) benchRef.current.instanceColor.needsUpdate = true;
+    }
+  }, [benches]);
+
+  // Set lamp instance matrices
+  useEffect(() => {
+    if (lampPostRef.current && lampLightRef.current && lamps.length > 0) {
+      const mat = new THREE.Matrix4();
+
+      lamps.forEach((l, i) => {
+        // Post at y+2
+        mat.makeTranslation(l.position[0], l.position[1] + 2, l.position[2]);
+        lampPostRef.current!.setMatrixAt(i, mat);
+        // Light at y+4.2
+        mat.makeTranslation(l.position[0], l.position[1] + 4.2, l.position[2]);
+        lampLightRef.current!.setMatrixAt(i, mat);
+      });
+      lampPostRef.current.instanceMatrix.needsUpdate = true;
+      lampLightRef.current.instanceMatrix.needsUpdate = true;
+    }
+  }, [lamps]);
+
+  // Shared colors
   const binColor = isDarkMode ? "#1f2937" : "#374151";
   const fountainColor = isDarkMode ? "#0ea5e9" : "#38bdf8";
   const planterGreen = isDarkMode ? "#15803d" : "#22c55e";
   const sculptureColor = "#f8fafc";
-  const signBaseColor = isDarkMode ? "#475569" : "#64748b";
 
   return (
     <group>
-      {details.map((item, index) => {
+      {/* Instanced Benches */}
+      {benches.length > 0 && (
+        <instancedMesh ref={benchRef} args={[benchGeo, benchMat, benches.length]} />
+      )}
+
+      {/* Instanced Lamp Posts + Lights */}
+      {lamps.length > 0 && (
+        <>
+          <instancedMesh ref={lampPostRef} args={[lampPostGeo, lampPostMat, lamps.length]} />
+          <instancedMesh ref={lampLightRef} args={[lampLightGeo, lampLightMat, lamps.length]} />
+        </>
+      )}
+
+      {/* Remaining items rendered individually (low count, complex geometry) */}
+      {others.map((item, index) => {
         const [x, y, z] = item.position;
         const key = `${item.type}-${index}`;
 
         switch (item.type) {
-          case 'bench':
-            return (
-              <mesh
-                key={key}
-                position={[x, y, z]}
-                rotation={[0, item.rotation, 0]}
-                onPointerOver={(e: ThreeEvent<PointerEvent>) => {
-                  e.stopPropagation();
-                  onHover?.({
-                    type: 'ring',
-                    name: 'Park Bench',
-                    description: 'Public seating for residents and visitors.',
-                    position: { x: e.clientX, y: e.clientY }
-                  });
-                }}
-                onPointerOut={() => onHover?.(null)}
-              >
-                <boxGeometry args={[2, 0.5, 0.5]} />
-                <meshStandardMaterial color={item.color || '#78350f'} roughness={0.9} />
-              </mesh>
-            );
-
-          case 'lamp':
-            return (
-              <group key={key} position={[x, y, z]}>
-                {/* Post */}
-                <mesh position={[0, 2, 0]}>
-                  <cylinderGeometry args={[0.1, 0.1, 4, 6]} />
-                  <meshStandardMaterial color={signBaseColor} roughness={0.6} metalness={0.4} />
-                </mesh>
-                {/* Light */}
-                <mesh
-                  position={[0, 4.2, 0]}
-                  onPointerOver={(e: ThreeEvent<PointerEvent>) => {
-                    e.stopPropagation();
-                    onHover?.({
-                      type: 'ring',
-                      name: 'Street Lamp',
-                      description: 'LED lighting for evening illumination.',
-                      position: { x: e.clientX, y: e.clientY }
-                    });
-                  }}
-                  onPointerOut={() => onHover?.(null)}
-                >
-                  <sphereGeometry args={[0.3, 8, 6]} />
-                  <meshStandardMaterial
-                    color={lampColor}
-                    emissive={lampColor}
-                    emissiveIntensity={isDarkMode ? 0.8 : 0.2}
-                  />
-                </mesh>
-              </group>
-            );
-
           case 'bin':
             return (
               <mesh

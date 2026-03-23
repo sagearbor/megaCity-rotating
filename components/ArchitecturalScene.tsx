@@ -1,14 +1,16 @@
-import React, { useRef, useMemo, useEffect, useCallback } from 'react';
+import React, { useRef, useMemo, useEffect, useCallback, Suspense, lazy } from 'react';
 import { Canvas, useFrame, ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, Stars, Text, Edges, Cloud, Sky } from '@react-three/drei';
 import * as THREE from 'three';
 import { RingConfig, WalkwayConfig, SimulationState, UmbilicalTowerConfig, HoverInfo } from '../types';
-import { ShowcaseDetails } from './ShowcaseDetails';
-import { ShowcaseGroundAmenities } from './ShowcaseGroundAmenities';
-import { ShowcaseForest } from './ShowcaseForest';
 import { Ring12GapAmenities } from './Ring12GapAmenities';
 import { Ring34GapAmenities } from './Ring34GapAmenities';
-import ShowcaseBeacon from './ShowcaseBeacon';
+
+// Lazy-load showcase/amenity components for faster initial load
+const ShowcaseDetailsLazy = lazy(() => import('./ShowcaseDetails').then(m => ({ default: m.ShowcaseDetails })));
+const ShowcaseGroundAmenitiesLazy = lazy(() => import('./ShowcaseGroundAmenities').then(m => ({ default: m.ShowcaseGroundAmenities })));
+const ShowcaseForestLazy = lazy(() => import('./ShowcaseForest').then(m => ({ default: m.ShowcaseForest })));
+const ShowcaseBeaconLazy = lazy(() => import('./ShowcaseBeacon'));
 
 interface SceneProps {
   rings: RingConfig[];
@@ -319,6 +321,87 @@ const StaticBridge: React.FC<{ config: WalkwayConfig, rings: RingConfig[], isDar
     );
 };
 
+// Instanced tree rendering for WoodedArea - replaces individual meshes with InstancedMesh
+const InstancedWoodedTrees: React.FC<{
+    trees: Array<{ x: number; z: number; scale: number; type: 'pine' | 'oak' }>;
+    pineColor: string;
+    oakColor: string;
+    trunkColor: string;
+}> = ({ trees, pineColor, oakColor, trunkColor }) => {
+    const pineTrunkRef = useRef<THREE.InstancedMesh>(null);
+    const pineFoliageRef = useRef<THREE.InstancedMesh>(null);
+    const oakTrunkRef = useRef<THREE.InstancedMesh>(null);
+    const oakFoliageRef = useRef<THREE.InstancedMesh>(null);
+
+    const { pines, oaks } = useMemo(() => {
+        const p: typeof trees = [];
+        const o: typeof trees = [];
+        trees.forEach(t => (t.type === 'pine' ? p : o).push(t));
+        return { pines: p, oaks: o };
+    }, [trees]);
+
+    const pineTrunkGeo = useMemo(() => new THREE.CylinderGeometry(0.5, 0.7, 4, 6), []);
+    const pineFoliageGeo = useMemo(() => new THREE.ConeGeometry(4, 12, 6), []);
+    const oakTrunkGeo = useMemo(() => new THREE.CylinderGeometry(0.6, 0.9, 6, 6), []);
+    const oakFoliageGeo = useMemo(() => new THREE.SphereGeometry(5, 8, 6), []);
+
+    const trunkMat = useMemo(() => new THREE.MeshStandardMaterial({ color: trunkColor, roughness: 0.9 }), [trunkColor]);
+    const pineMat = useMemo(() => new THREE.MeshStandardMaterial({ color: pineColor, roughness: 0.9 }), [pineColor]);
+    const oakMat = useMemo(() => new THREE.MeshStandardMaterial({ color: oakColor, roughness: 0.9 }), [oakColor]);
+
+    useEffect(() => {
+        const mat = new THREE.Matrix4();
+        const pos = new THREE.Vector3();
+        const quat = new THREE.Quaternion();
+        const scl = new THREE.Vector3();
+
+        if (pineTrunkRef.current && pineFoliageRef.current) {
+            pines.forEach((t, i) => {
+                scl.set(t.scale, t.scale, t.scale);
+                pos.set(t.x, 2 * t.scale, t.z);
+                mat.compose(pos, quat, scl);
+                pineTrunkRef.current!.setMatrixAt(i, mat);
+                pos.set(t.x, 8 * t.scale, t.z);
+                mat.compose(pos, quat, scl);
+                pineFoliageRef.current!.setMatrixAt(i, mat);
+            });
+            pineTrunkRef.current.instanceMatrix.needsUpdate = true;
+            pineFoliageRef.current.instanceMatrix.needsUpdate = true;
+        }
+
+        if (oakTrunkRef.current && oakFoliageRef.current) {
+            oaks.forEach((t, i) => {
+                scl.set(t.scale, t.scale, t.scale);
+                pos.set(t.x, 3 * t.scale, t.z);
+                mat.compose(pos, quat, scl);
+                oakTrunkRef.current!.setMatrixAt(i, mat);
+                pos.set(t.x, 10 * t.scale, t.z);
+                mat.compose(pos, quat, scl);
+                oakFoliageRef.current!.setMatrixAt(i, mat);
+            });
+            oakTrunkRef.current.instanceMatrix.needsUpdate = true;
+            oakFoliageRef.current.instanceMatrix.needsUpdate = true;
+        }
+    }, [pines, oaks]);
+
+    return (
+        <>
+            {pines.length > 0 && (
+                <>
+                    <instancedMesh ref={pineTrunkRef} args={[pineTrunkGeo, trunkMat, pines.length]} />
+                    <instancedMesh ref={pineFoliageRef} args={[pineFoliageGeo, pineMat, pines.length]} />
+                </>
+            )}
+            {oaks.length > 0 && (
+                <>
+                    <instancedMesh ref={oakTrunkRef} args={[oakTrunkGeo, trunkMat, oaks.length]} />
+                    <instancedMesh ref={oakFoliageRef} args={[oakFoliageGeo, oakMat, oaks.length]} />
+                </>
+            )}
+        </>
+    );
+};
+
 // Wooded area with trees and streams
 const WoodedArea: React.FC<{
     position: [number, number, number];
@@ -418,36 +501,8 @@ const WoodedArea: React.FC<{
                 </>
             )}
 
-            {/* Trees */}
-            {trees.map((tree, i) => (
-                <group key={i} position={[tree.x, 0, tree.z]} scale={tree.scale}>
-                    {tree.type === 'pine' ? (
-                        // Pine tree - cone shape
-                        <>
-                            <mesh position={[0, 8, 0]}>
-                                <coneGeometry args={[4, 12, 6]} />
-                                <meshStandardMaterial color={pineColor} roughness={0.9} />
-                            </mesh>
-                            <mesh position={[0, 2, 0]}>
-                                <cylinderGeometry args={[0.5, 0.7, 4, 6]} />
-                                <meshStandardMaterial color={trunkColor} roughness={0.9} />
-                            </mesh>
-                        </>
-                    ) : (
-                        // Oak tree - sphere shape
-                        <>
-                            <mesh position={[0, 10, 0]}>
-                                <sphereGeometry args={[5, 8, 6]} />
-                                <meshStandardMaterial color={oakColor} roughness={0.9} />
-                            </mesh>
-                            <mesh position={[0, 3, 0]}>
-                                <cylinderGeometry args={[0.6, 0.9, 6, 6]} />
-                                <meshStandardMaterial color={trunkColor} roughness={0.9} />
-                            </mesh>
-                        </>
-                    )}
-                </group>
-            ))}
+            {/* Instanced Trees */}
+            <InstancedWoodedTrees trees={trees} pineColor={pineColor} oakColor={oakColor} trunkColor={trunkColor} />
         </group>
     );
 };
@@ -765,29 +820,7 @@ const TunnelSystem: React.FC<{
     );
 };
 
-// Simple human figure component
-const Person: React.FC<{
-    position: [number, number, number];
-    bodyColor: string;
-}> = ({ position, bodyColor }) => {
-    const headColor = "#f5d0c5";
-
-    return (
-        <group position={position}>
-            {/* Body - thin cylinder */}
-            <mesh position={[0, 0.75, 0]}>
-                <cylinderGeometry args={[0.2, 0.2, 1.5, 8]} />
-                <meshStandardMaterial color={bodyColor} roughness={0.8} />
-            </mesh>
-            {/* Head - small sphere */}
-            <mesh position={[0, 1.8, 0]}>
-                <sphereGeometry args={[0.3, 8, 8]} />
-                <meshStandardMaterial color={headColor} roughness={0.9} />
-            </mesh>
-        </group>
-    );
-};
-
+// Instanced people rendering - 2 InstancedMesh (body cylinders + head spheres) instead of ~160 individual meshes
 interface ShowcasePeopleProps {
     ring2OuterRadius: number;
     ring2Height: number;
@@ -801,532 +834,189 @@ const ShowcasePeople: React.FC<ShowcasePeopleProps> = ({
     ring2Height,
     ring3InnerRadius,
     bridgeY,
-    isDarkMode
 }) => {
-    const bodyColors = ['#ef4444', '#3b82f6', '#eab308', '#22c55e', '#a855f7', '#f97316'];
+    const bodyRef = useRef<THREE.InstancedMesh>(null);
+    const headRef = useRef<THREE.InstancedMesh>(null);
 
-    // Helper function to get random color
-    const getRandomColor = () => bodyColors[Math.floor(Math.random() * bodyColors.length)];
+    const bodyGeo = useMemo(() => new THREE.CylinderGeometry(0.2, 0.2, 1.5, 8), []);
+    const headGeo = useMemo(() => new THREE.SphereGeometry(0.3, 8, 8), []);
+    const bodyMat = useMemo(() => new THREE.MeshStandardMaterial({ roughness: 0.8 }), []);
+    const headMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#f5d0c5', roughness: 0.9 }), []);
 
-    // Calculate positions
-    const showcaseAngle = 0; // angle 0 for showcase area
-    const bridgeLength = ring3InnerRadius - ring2OuterRadius;
-    const bridgeMid = ring2OuterRadius + bridgeLength / 2;
-    const groundMid = bridgeMid; // Same as bridgeMid - the midpoint between Ring 2 and Ring 3
-    const groundY = 2;
-    const rooftopY = ring2Height + 2;
+    // Memoize all person positions and colors deterministically (no Math.random in render)
+    const people = useMemo(() => {
+        const colors = ['#ef4444', '#3b82f6', '#eab308', '#22c55e', '#a855f7', '#f97316'];
+        let ci = 0;
+        const c = () => colors[ci++ % colors.length];
 
-    const people = [];
+        const bridgeLength = ring3InnerRadius - ring2OuterRadius;
+        const groundMid = ring2OuterRadius + bridgeLength / 2;
+        const groundY = 2;
+        const rooftopY = ring2Height + 2;
+        const ring1To2Mid = ring2OuterRadius * 0.4;
+        const ring3To4Mid = ring3InnerRadius + (ring3InnerRadius - ring2OuterRadius) * 0.5;
 
-    // On bridges - 4 people walking on the nearest bridge
-    const bridgePositions = [
-        [ring2OuterRadius + bridgeLength * 0.2, bridgeY, 0],
-        [ring2OuterRadius + bridgeLength * 0.4, bridgeY, 2],
-        [ring2OuterRadius + bridgeLength * 0.6, bridgeY, -1.5],
-        [ring2OuterRadius + bridgeLength * 0.8, bridgeY, 1],
-    ];
-    bridgePositions.forEach((pos, i) => {
-        people.push(
-            <Person
-                key={`bridge-${i}`}
-                position={pos as [number, number, number]}
-                bodyColor={bodyColors[i % bodyColors.length]}
-            />
-        );
-    });
+        const p: Array<{ pos: [number, number, number]; color: string }> = [];
+        const add = (pos: [number, number, number], color?: string) => p.push({ pos, color: color || c() });
 
-    // On rooftops - Ring 2
-    // 2 people at yoga deck
-    people.push(
-        <Person
-            key="yoga-1"
-            position={[ring2OuterRadius - 10, rooftopY, -3]}
-            bodyColor={bodyColors[0]}
-        />,
-        <Person
-            key="yoga-2"
-            position={[ring2OuterRadius - 10, rooftopY, 3]}
-            bodyColor={bodyColors[1]}
-        />
+        // Bridge people
+        add([ring2OuterRadius + bridgeLength * 0.2, bridgeY, 0]);
+        add([ring2OuterRadius + bridgeLength * 0.4, bridgeY, 2]);
+        add([ring2OuterRadius + bridgeLength * 0.6, bridgeY, -1.5]);
+        add([ring2OuterRadius + bridgeLength * 0.8, bridgeY, 1]);
+
+        // Rooftop - yoga deck
+        add([ring2OuterRadius - 10, rooftopY, -3]);
+        add([ring2OuterRadius - 10, rooftopY, 3]);
+
+        // Rooftop bar
+        add([ring2OuterRadius - 35, rooftopY, -2]);
+        add([ring2OuterRadius - 35, rooftopY, 2]);
+        add([ring2OuterRadius - 35, rooftopY, 6]);
+        add([ring2OuterRadius - 38, rooftopY, 0]);
+
+        // Viewing area
+        add([ring2OuterRadius - 5, rooftopY, 8]);
+        add([ring2OuterRadius - 5, rooftopY, -8]);
+
+        // Joggers
+        add([groundMid + 10, groundY, 15]);
+        add([groundMid + 15, groundY, 18]);
+
+        // Food truck area
+        add([groundMid - 20, groundY, 10]);
+        add([groundMid - 18, groundY, 13]);
+        add([groundMid - 22, groundY, 8]);
+        add([groundMid - 15, groundY, 11]);
+
+        // Outdoor gym
+        add([groundMid + 25, groundY, -10]);
+        add([groundMid + 28, groundY, -12]);
+
+        // Kids at playground
+        add([groundMid, groundY, -20]);
+        add([groundMid + 3, groundY, -22]);
+        add([groundMid - 3, groundY, -18]);
+        add([groundMid + 5, groundY, -25]);
+        add([groundMid - 2, groundY, -23]);
+
+        // Dog park
+        add([groundMid - 30, groundY, -15]);
+        add([groundMid - 35, groundY, -18]);
+
+        // Benches
+        add([ring2OuterRadius + 5, groundY, 25]);
+        add([ring2OuterRadius + 5, groundY, -25]);
+
+        // Ring 1-2 gap transit hub - bike racks
+        add([ring1To2Mid, groundY, 12]);
+        add([ring1To2Mid + 2, groundY, 14]);
+        add([ring1To2Mid - 1, groundY, 10]);
+
+        // Transit coffee area
+        add([ring1To2Mid + 5, groundY, -8]);
+        add([ring1To2Mid + 7, groundY, -6]);
+        add([ring1To2Mid + 4, groundY, -10]);
+
+        // Transit walkers
+        add([ring1To2Mid - 8, groundY, 0]);
+        add([ring1To2Mid + 10, groundY, 3]);
+        add([ring1To2Mid, groundY, -15]);
+        add([ring1To2Mid + 3, groundY, 18]);
+
+        // More food trucks (lunch crowd)
+        add([groundMid + 15, groundY, -18]);
+        add([groundMid + 18, groundY, -20]);
+        add([groundMid + 12, groundY, -22]);
+        add([groundMid + 20, groundY, -19]);
+        add([groundMid + 16, groundY, -16]);
+
+        // Farmers market
+        add([groundMid + 50, groundY, 8]);
+        add([groundMid + 52, groundY, 12]);
+        add([groundMid + 48, groundY, 14]);
+        add([groundMid + 50, groundY, 6]);
+
+        // Koi pond
+        add([groundMid, groundY, 8]);
+        add([groundMid + 6, groundY, -1]);
+        add([groundMid - 5, groundY, 3]);
+
+        // Ring 3-4 gap - skate park
+        add([ring3To4Mid - 50, groundY, 15]);
+        add([ring3To4Mid - 48, groundY, 18]);
+        add([ring3To4Mid - 55, groundY, 13]);
+        add([ring3To4Mid - 52, groundY, 20]);
+
+        // Outdoor gym area
+        add([ring3To4Mid - 38, groundY, -8]);
+        add([ring3To4Mid - 40, groundY, -12]);
+        add([ring3To4Mid - 35, groundY, -10]);
+        add([ring3To4Mid - 42, groundY, -6]);
+
+        // Basketball court
+        add([ring3To4Mid + 37, groundY, -28]);
+        add([ring3To4Mid + 39, groundY, -32]);
+        add([ring3To4Mid + 35, groundY, -30]);
+        add([ring3To4Mid + 38, groundY, -26]);
+        add([ring3To4Mid + 36, groundY, -34]);
+
+        // Picnic area
+        add([ring3To4Mid - 10, groundY, -33]);
+        add([ring3To4Mid - 6, groundY, -35]);
+        add([ring3To4Mid - 2, groundY, -37]);
+        add([ring3To4Mid - 8, groundY, -31]);
+
+        // Botanical garden
+        add([ring3To4Mid - 28, groundY, -43]);
+        add([ring3To4Mid - 32, groundY, -46]);
+        add([ring3To4Mid - 25, groundY, -48]);
+
+        // More rooftop - yoga
+        add([ring2OuterRadius - 12, rooftopY, 0]);
+        add([ring2OuterRadius - 8, rooftopY, -5]);
+        add([ring2OuterRadius - 14, rooftopY, 5]);
+
+        // Greenhouse
+        add([ring2OuterRadius - 45, rooftopY, 10]);
+        add([ring2OuterRadius - 43, rooftopY, 14]);
+
+        // Amphitheater
+        add([ring2OuterRadius - 58, rooftopY, -3]);
+        add([ring2OuterRadius - 62, rooftopY, -6]);
+        add([ring2OuterRadius - 60, rooftopY, -8]);
+
+        return p;
+    }, [ring2OuterRadius, ring2Height, ring3InnerRadius, bridgeY]);
+
+    useEffect(() => {
+        if (!bodyRef.current || !headRef.current || people.length === 0) return;
+        const mat = new THREE.Matrix4();
+        const col = new THREE.Color();
+
+        people.forEach((p, i) => {
+            // Body at pos + 0.75 Y
+            mat.makeTranslation(p.pos[0], p.pos[1] + 0.75, p.pos[2]);
+            bodyRef.current!.setMatrixAt(i, mat);
+            col.set(p.color);
+            bodyRef.current!.setColorAt(i, col);
+
+            // Head at pos + 1.8 Y
+            mat.makeTranslation(p.pos[0], p.pos[1] + 1.8, p.pos[2]);
+            headRef.current!.setMatrixAt(i, mat);
+        });
+
+        bodyRef.current.instanceMatrix.needsUpdate = true;
+        if (bodyRef.current.instanceColor) bodyRef.current.instanceColor.needsUpdate = true;
+        headRef.current.instanceMatrix.needsUpdate = true;
+    }, [people]);
+
+    return (
+        <group>
+            <instancedMesh ref={bodyRef} args={[bodyGeo, bodyMat, people.length]} />
+            <instancedMesh ref={headRef} args={[headGeo, headMat, people.length]} />
+        </group>
     );
-
-    // 3-4 people at rooftop bar area
-    people.push(
-        <Person
-            key="bar-1"
-            position={[ring2OuterRadius - 35, rooftopY, -2]}
-            bodyColor={bodyColors[2]}
-        />,
-        <Person
-            key="bar-2"
-            position={[ring2OuterRadius - 35, rooftopY, 2]}
-            bodyColor={bodyColors[3]}
-        />,
-        <Person
-            key="bar-3"
-            position={[ring2OuterRadius - 35, rooftopY, 6]}
-            bodyColor={bodyColors[4]}
-        />,
-        <Person
-            key="bar-4"
-            position={[ring2OuterRadius - 38, rooftopY, 0]}
-            bodyColor={bodyColors[5]}
-        />
-    );
-
-    // 1-2 people at viewing area
-    people.push(
-        <Person
-            key="view-1"
-            position={[ring2OuterRadius - 5, rooftopY, 8]}
-            bodyColor={bodyColors[0]}
-        />,
-        <Person
-            key="view-2"
-            position={[ring2OuterRadius - 5, rooftopY, -8]}
-            bodyColor={bodyColors[1]}
-        />
-    );
-
-    // On ground - between Ring 2 and Ring 3
-    // 2 people jogging on a path
-    people.push(
-        <Person
-            key="jog-1"
-            position={[groundMid + 10, groundY, 15]}
-            bodyColor={bodyColors[2]}
-        />,
-        <Person
-            key="jog-2"
-            position={[groundMid + 15, groundY, 18]}
-            bodyColor={bodyColors[3]}
-        />
-    );
-
-    // 3-4 people around food truck area
-    people.push(
-        <Person
-            key="food-1"
-            position={[groundMid - 20, groundY, 10]}
-            bodyColor={bodyColors[4]}
-        />,
-        <Person
-            key="food-2"
-            position={[groundMid - 18, groundY, 13]}
-            bodyColor={bodyColors[5]}
-        />,
-        <Person
-            key="food-3"
-            position={[groundMid - 22, groundY, 8]}
-            bodyColor={bodyColors[0]}
-        />,
-        <Person
-            key="food-4"
-            position={[groundMid - 15, groundY, 11]}
-            bodyColor={bodyColors[1]}
-        />
-    );
-
-    // 2 people at outdoor gym
-    people.push(
-        <Person
-            key="gym-1"
-            position={[groundMid + 25, groundY, -10]}
-            bodyColor={bodyColors[2]}
-        />,
-        <Person
-            key="gym-2"
-            position={[groundMid + 28, groundY, -12]}
-            bodyColor={bodyColors[3]}
-        />
-    );
-
-    // 4-5 kids at playground/splash area
-    people.push(
-        <Person
-            key="kid-1"
-            position={[groundMid, groundY, -20]}
-            bodyColor={bodyColors[4]}
-        />,
-        <Person
-            key="kid-2"
-            position={[groundMid + 3, groundY, -22]}
-            bodyColor={bodyColors[5]}
-        />,
-        <Person
-            key="kid-3"
-            position={[groundMid - 3, groundY, -18]}
-            bodyColor={bodyColors[0]}
-        />,
-        <Person
-            key="kid-4"
-            position={[groundMid + 5, groundY, -25]}
-            bodyColor={bodyColors[1]}
-        />,
-        <Person
-            key="kid-5"
-            position={[groundMid - 2, groundY, -23]}
-            bodyColor={bodyColors[2]}
-        />
-    );
-
-    // 2 people walking dogs in dog park
-    people.push(
-        <Person
-            key="dog-1"
-            position={[groundMid - 30, groundY, -15]}
-            bodyColor={bodyColors[3]}
-        />,
-        <Person
-            key="dog-2"
-            position={[groundMid - 35, groundY, -18]}
-            bodyColor={bodyColors[4]}
-        />
-    );
-
-    // 2 people sitting on benches
-    people.push(
-        <Person
-            key="bench-1"
-            position={[ring2OuterRadius + 5, groundY, 25]}
-            bodyColor={bodyColors[5]}
-        />,
-        <Person
-            key="bench-2"
-            position={[ring2OuterRadius + 5, groundY, -25]}
-            bodyColor={bodyColors[0]}
-        />
-    );
-
-    // ============================================================================
-    // NEW PEOPLE - RING 1-2 GAP (TRANSIT HUB AREA) - 10 people
-    // ============================================================================
-
-    // Calculate Ring 1-2 gap midpoint (closer to center, inner transit area)
-    const ring1To2Mid = ring2OuterRadius * 0.4; // Approximate inner transit hub area
-
-    // Near bike racks - 3 people getting/parking bikes
-    people.push(
-        <Person
-            key="transit-bike-1"
-            position={[ring1To2Mid, groundY, 12]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="transit-bike-2"
-            position={[ring1To2Mid + 2, groundY, 14]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="transit-bike-3"
-            position={[ring1To2Mid - 1, groundY, 10]}
-            bodyColor={getRandomColor()}
-        />
-    );
-
-    // At coffee kiosk/waiting area - 3 people with coffee
-    people.push(
-        <Person
-            key="transit-coffee-1"
-            position={[ring1To2Mid + 5, groundY, -8]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="transit-coffee-2"
-            position={[ring1To2Mid + 7, groundY, -6]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="transit-coffee-3"
-            position={[ring1To2Mid + 4, groundY, -10]}
-            bodyColor={getRandomColor()}
-        />
-    );
-
-    // Walking through transit area - 4 people in motion
-    people.push(
-        <Person
-            key="transit-walk-1"
-            position={[ring1To2Mid - 8, groundY, 0]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="transit-walk-2"
-            position={[ring1To2Mid + 10, groundY, 3]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="transit-walk-3"
-            position={[ring1To2Mid, groundY, -15]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="transit-walk-4"
-            position={[ring1To2Mid + 3, groundY, 18]}
-            bodyColor={getRandomColor()}
-        />
-    );
-
-    // ============================================================================
-    // NEW PEOPLE - MORE IN MAIN SHOWCASE AREA (RING 2-3) - 12 people
-    // ============================================================================
-
-    // More at food trucks (lunch crowd) - 5 people
-    people.push(
-        <Person
-            key="food-5"
-            position={[groundMid + 15, groundY, -18]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="food-6"
-            position={[groundMid + 18, groundY, -20]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="food-7"
-            position={[groundMid + 12, groundY, -22]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="food-8"
-            position={[groundMid + 20, groundY, -19]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="food-9"
-            position={[groundMid + 16, groundY, -16]}
-            bodyColor={getRandomColor()}
-        />
-    );
-
-    // At farmers market - 4 people shopping
-    people.push(
-        <Person
-            key="market-1"
-            position={[groundMid + 50, groundY, 8]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="market-2"
-            position={[groundMid + 52, groundY, 12]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="market-3"
-            position={[groundMid + 48, groundY, 14]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="market-4"
-            position={[groundMid + 50, groundY, 6]}
-            bodyColor={getRandomColor()}
-        />
-    );
-
-    // Around koi pond - 3 people relaxing/viewing
-    people.push(
-        <Person
-            key="pond-1"
-            position={[groundMid, groundY, 8]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="pond-2"
-            position={[groundMid + 6, groundY, -1]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="pond-3"
-            position={[groundMid - 5, groundY, 3]}
-            bodyColor={getRandomColor()}
-        />
-    );
-
-    // ============================================================================
-    // NEW PEOPLE - RING 3-4 GAP (RECREATION AREA) - 20 people
-    // ============================================================================
-
-    // Calculate Ring 3-4 gap area (further out from Ring 3)
-    const ring3To4Mid = ring3InnerRadius + (ring3InnerRadius - ring2OuterRadius) * 0.5;
-
-    // At skate park - 4 skaters
-    people.push(
-        <Person
-            key="skate-1"
-            position={[ring3To4Mid - 50, groundY, 15]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="skate-2"
-            position={[ring3To4Mid - 48, groundY, 18]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="skate-3"
-            position={[ring3To4Mid - 55, groundY, 13]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="skate-4"
-            position={[ring3To4Mid - 52, groundY, 20]}
-            bodyColor={getRandomColor()}
-        />
-    );
-
-    // At outdoor gym area - 4 people exercising
-    people.push(
-        <Person
-            key="gym-3"
-            position={[ring3To4Mid - 38, groundY, -8]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="gym-4"
-            position={[ring3To4Mid - 40, groundY, -12]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="gym-5"
-            position={[ring3To4Mid - 35, groundY, -10]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="gym-6"
-            position={[ring3To4Mid - 42, groundY, -6]}
-            bodyColor={getRandomColor()}
-        />
-    );
-
-    // At basketball court - 5 players
-    people.push(
-        <Person
-            key="bball-1"
-            position={[ring3To4Mid + 37, groundY, -28]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="bball-2"
-            position={[ring3To4Mid + 39, groundY, -32]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="bball-3"
-            position={[ring3To4Mid + 35, groundY, -30]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="bball-4"
-            position={[ring3To4Mid + 38, groundY, -26]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="bball-5"
-            position={[ring3To4Mid + 36, groundY, -34]}
-            bodyColor={getRandomColor()}
-        />
-    );
-
-    // At picnic area - 4 people at tables
-    people.push(
-        <Person
-            key="picnic-1"
-            position={[ring3To4Mid - 10, groundY, -33]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="picnic-2"
-            position={[ring3To4Mid - 6, groundY, -35]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="picnic-3"
-            position={[ring3To4Mid - 2, groundY, -37]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="picnic-4"
-            position={[ring3To4Mid - 8, groundY, -31]}
-            bodyColor={getRandomColor()}
-        />
-    );
-
-    // At botanical garden - 3 people viewing plants
-    people.push(
-        <Person
-            key="garden-1"
-            position={[ring3To4Mid - 28, groundY, -43]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="garden-2"
-            position={[ring3To4Mid - 32, groundY, -46]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="garden-3"
-            position={[ring3To4Mid - 25, groundY, -48]}
-            bodyColor={getRandomColor()}
-        />
-    );
-
-    // ============================================================================
-    // MORE ROOFTOP PEOPLE - 8 people
-    // ============================================================================
-
-    // More at yoga deck - 3 additional yogis
-    people.push(
-        <Person
-            key="yoga-3"
-            position={[ring2OuterRadius - 12, rooftopY, 0]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="yoga-4"
-            position={[ring2OuterRadius - 8, rooftopY, -5]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="yoga-5"
-            position={[ring2OuterRadius - 14, rooftopY, 5]}
-            bodyColor={getRandomColor()}
-        />
-    );
-
-    // At greenhouse - 2 people gardening
-    people.push(
-        <Person
-            key="greenhouse-1"
-            position={[ring2OuterRadius - 45, rooftopY, 10]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="greenhouse-2"
-            position={[ring2OuterRadius - 43, rooftopY, 14]}
-            bodyColor={getRandomColor()}
-        />
-    );
-
-    // At amphitheater - 3 people watching/sitting
-    people.push(
-        <Person
-            key="amphi-1"
-            position={[ring2OuterRadius - 58, rooftopY, -3]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="amphi-2"
-            position={[ring2OuterRadius - 62, rooftopY, -6]}
-            bodyColor={getRandomColor()}
-        />,
-        <Person
-            key="amphi-3"
-            position={[ring2OuterRadius - 60, rooftopY, -8]}
-            bodyColor={getRandomColor()}
-        />
-    );
-
-    return <group>{people}</group>;
 };
 
 interface ShowcaseRooftopAmenitiesProps {
@@ -1632,6 +1322,52 @@ const ShowcaseRooftopAmenities: React.FC<ShowcaseRooftopAmenitiesProps> = ({
   );
 };
 
+// Memoized park zone geometries to avoid recreating Shape/ShapeGeometry every render
+const MemoizedParkZones: React.FC<{
+    rings: RingConfig[];
+    isDarkMode: boolean;
+    showGroundAmenities: boolean;
+    onHover?: (info: HoverInfo | null) => void;
+}> = ({ rings, isDarkMode, showGroundAmenities, onHover }) => {
+    const parkGeos = useMemo(() => {
+        return rings.slice(0, -1).map((ring, i) => {
+            const nextRing = rings[i + 1];
+            const shape = new THREE.Shape();
+            shape.absarc(0, 0, nextRing.innerRadius, 0, Math.PI * 2, false);
+            const hole = new THREE.Path();
+            hole.absarc(0, 0, ring.outerRadius, 0, Math.PI * 2, true);
+            shape.holes.push(hole);
+            return {
+                geo: new THREE.ShapeGeometry(shape),
+                innerRadius: ring.outerRadius,
+                outerRadius: nextRing.innerRadius,
+                index: i,
+            };
+        });
+    }, [rings]);
+
+    return (
+        <>
+            {parkGeos.map((park, i) => (
+                <group key={`park-${i}`}>
+                    <mesh geometry={park.geo} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.5, 0]}>
+                        <meshStandardMaterial color={isDarkMode ? "#064e3b" : "#bbf7d0"} roughness={1} />
+                    </mesh>
+                    {showGroundAmenities && (
+                        <GroundAmenities
+                            innerRadius={park.innerRadius}
+                            outerRadius={park.outerRadius}
+                            index={park.index}
+                            isDarkMode={isDarkMode}
+                            onHover={onHover}
+                        />
+                    )}
+                </group>
+            ))}
+        </>
+    );
+};
+
 const SceneContent: React.FC<SceneProps> = ({ rings, walkways, simState, resetTrigger, isDarkMode, globalOpacity, showUtilities = false, showTunnels = false, showRooftopAmenities = true, showGroundAmenities = true, showSolarPanels = true, onHover }) => {
   const controlsRef = useRef<any>(null);
 
@@ -1665,35 +1401,8 @@ const SceneContent: React.FC<SceneProps> = ({ rings, walkways, simState, resetTr
           <meshStandardMaterial color={isDarkMode ? "#0f172a" : "#f1f5f9"} roughness={0.8} />
       </mesh>
 
-      {/* Park Zones between rings */}
-      {rings.map((ring, i) => {
-          if (i === rings.length - 1) return null;
-          const nextRing = rings[i+1];
-           // Simple Green Ring for parks
-           const shape = new THREE.Shape();
-           shape.absarc(0, 0, nextRing.innerRadius, 0, Math.PI*2, false);
-           const hole = new THREE.Path();
-           hole.absarc(0, 0, ring.outerRadius, 0, Math.PI*2, true);
-           shape.holes.push(hole);
-           const geo = new THREE.ShapeGeometry(shape);
-
-           return (
-            <group key={`park-${i}`}>
-                <mesh geometry={geo} rotation={[-Math.PI/2, 0, 0]} position={[0, 0.5, 0]}>
-                    <meshStandardMaterial color={isDarkMode ? "#064e3b" : "#bbf7d0"} roughness={1} />
-                </mesh>
-                {showGroundAmenities && (
-                    <GroundAmenities
-                        innerRadius={ring.outerRadius}
-                        outerRadius={nextRing.innerRadius}
-                        index={i}
-                        isDarkMode={isDarkMode}
-                        onHover={onHover}
-                    />
-                )}
-            </group>
-           );
-      })}
+      {/* Park Zones between rings - memoized geometries */}
+      <MemoizedParkZones rings={rings} isDarkMode={isDarkMode} showGroundAmenities={showGroundAmenities} onHover={onHover} />
 
       {rings.map(ring => (
         <CityRing key={ring.id} ring={ring} simState={simState} isDarkMode={isDarkMode} globalOpacity={globalOpacity} showRooftopAmenities={showRooftopAmenities} onHover={onHover} />
@@ -1737,75 +1446,76 @@ const SceneContent: React.FC<SceneProps> = ({ rings, walkways, simState, resetTr
         );
       })()}
 
-      {/* Showcase Ground Details - Urban furniture and decorative elements in gap between Ring 2 and Ring 3 */}
-      {showGroundAmenities && (() => {
-        const ring2 = rings.find(r => r.id === 'r2');
-        const ring3 = rings.find(r => r.id === 'r3');
-        if (!ring2 || !ring3) return null;
+      {/* Lazy-loaded showcase components wrapped in Suspense */}
+      <Suspense fallback={null}>
+        {/* Showcase Ground Details - Urban furniture and decorative elements in gap between Ring 2 and Ring 3 */}
+        {showGroundAmenities && (() => {
+          const ring2 = rings.find(r => r.id === 'r2');
+          const ring3 = rings.find(r => r.id === 'r3');
+          if (!ring2 || !ring3) return null;
 
-        // Calculate the center of the gap between Ring 2 and Ring 3
-        const centerRadius = (ring2.outerRadius + ring3.innerRadius) / 2;
-        const groundY = 0.5; // Slightly above ground plane
+          const centerRadius = (ring2.outerRadius + ring3.innerRadius) / 2;
+          const groundY = 0.5;
 
-        return (
-          <ShowcaseDetails
-            centerRadius={centerRadius}
-            groundY={groundY}
-            rooftopY={ring2.height}
-            ringOuterRadius={ring2.outerRadius}
-            isDarkMode={isDarkMode}
-            onHover={onHover}
-          />
-        );
-      })()}
+          return (
+            <ShowcaseDetailsLazy
+              centerRadius={centerRadius}
+              groundY={groundY}
+              rooftopY={ring2.height}
+              ringOuterRadius={ring2.outerRadius}
+              isDarkMode={isDarkMode}
+              onHover={onHover}
+            />
+          );
+        })()}
 
-      {/* Showcase Ground Amenities - Dense variety of ground-level features in one sector */}
-      {showGroundAmenities && (() => {
-        const ring2 = rings.find(r => r.id === 'r2');
-        const ring3 = rings.find(r => r.id === 'r3');
-        if (!ring2 || !ring3) return null;
+        {/* Showcase Ground Amenities - Dense variety of ground-level features in one sector */}
+        {showGroundAmenities && (() => {
+          const ring2 = rings.find(r => r.id === 'r2');
+          const ring3 = rings.find(r => r.id === 'r3');
+          if (!ring2 || !ring3) return null;
 
-        return (
-          <ShowcaseGroundAmenities
-            innerRadius={ring2.outerRadius}
-            outerRadius={ring3.innerRadius}
-            isDarkMode={isDarkMode}
-            onHover={onHover}
-          />
-        );
-      })()}
+          return (
+            <ShowcaseGroundAmenitiesLazy
+              innerRadius={ring2.outerRadius}
+              outerRadius={ring3.innerRadius}
+              isDarkMode={isDarkMode}
+              onHover={onHover}
+            />
+          );
+        })()}
 
-      {/* Showcase People - Human figures for scale and life */}
-      {showGroundAmenities && (() => {
-        const ring2 = rings.find(r => r.id === 'r2');
-        const ring3 = rings.find(r => r.id === 'r3');
-        if (!ring2 || !ring3) return null;
+        {/* Showcase People - Human figures for scale and life (InstancedMesh) */}
+        {showGroundAmenities && (() => {
+          const ring2 = rings.find(r => r.id === 'r2');
+          const ring3 = rings.find(r => r.id === 'r3');
+          if (!ring2 || !ring3) return null;
 
-        return (
-          <ShowcasePeople
-            ring2OuterRadius={ring2.outerRadius}
-            ring2Height={ring2.height}
-            ring3InnerRadius={ring3.innerRadius}
-            bridgeY={4 * 4} // Floor 4 bridge height
-            isDarkMode={isDarkMode}
-          />
-        );
-      })()}
+          return (
+            <ShowcasePeople
+              ring2OuterRadius={ring2.outerRadius}
+              ring2Height={ring2.height}
+              ring3InnerRadius={ring3.innerRadius}
+              bridgeY={4 * 4}
+              isDarkMode={isDarkMode}
+            />
+          );
+        })()}
 
-      {/* Showcase Forest */}
-      {showGroundAmenities && (() => {
-        const ring2 = rings.find(r => r.id === 'r2');
-        const ring3 = rings.find(r => r.id === 'r3');
-        if (!ring2 || !ring3) return null;
-        return (
-          <ShowcaseForest
-            innerRadius={ring2.outerRadius}
-            outerRadius={ring3.innerRadius}
-            isDarkMode={isDarkMode}
-            onHover={onHover}
-          />
-        );
-      })()}
+        {/* Showcase Forest */}
+        {showGroundAmenities && (() => {
+          const ring2 = rings.find(r => r.id === 'r2');
+          const ring3 = rings.find(r => r.id === 'r3');
+          if (!ring2 || !ring3) return null;
+          return (
+            <ShowcaseForestLazy
+              innerRadius={ring2.outerRadius}
+              outerRadius={ring3.innerRadius}
+              isDarkMode={isDarkMode}
+              onHover={onHover}
+            />
+          );
+        })()}
 
       {/* Ring 1-2 Gap Transit Hub */}
       {showGroundAmenities && (() => {
@@ -1837,13 +1547,14 @@ const SceneContent: React.FC<SceneProps> = ({ rings, walkways, simState, resetTr
         );
       })()}
 
-      {/* Showcase Beacon - Visible marker */}
-      {showGroundAmenities && (
-        <ShowcaseBeacon
-          position={[1175, 0, 0]}
-          isDarkMode={isDarkMode}
-        />
-      )}
+        {/* Showcase Beacon - Visible marker */}
+        {showGroundAmenities && (
+          <ShowcaseBeaconLazy
+            position={[1175, 0, 0]}
+            isDarkMode={isDarkMode}
+          />
+        )}
+      </Suspense>
 
       <OrbitControls 
         ref={controlsRef}
