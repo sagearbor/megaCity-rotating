@@ -26,6 +26,8 @@ interface ControlPanelProps {
   setShowRooftopAmenities: React.Dispatch<React.SetStateAction<boolean>>;
   showGroundAmenities: boolean;
   setShowGroundAmenities: React.Dispatch<React.SetStateAction<boolean>>;
+  showInfrastructure: boolean;
+  setShowInfrastructure: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -37,7 +39,8 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   showTunnels, setShowTunnels,
   showSolarPanels, setShowSolarPanels,
   showRooftopAmenities, setShowRooftopAmenities,
-  showGroundAmenities, setShowGroundAmenities
+  showGroundAmenities, setShowGroundAmenities,
+  showInfrastructure, setShowInfrastructure
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -287,6 +290,22 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                     {showGroundAmenities && (
                         <p className="text-xs text-slate-500 mt-2">
                             Recreation facilities: sports fields, pools, and natural areas
+                        </p>
+                    )}
+
+                    <button
+                        onClick={() => setShowInfrastructure(!showInfrastructure)}
+                        className={`w-full px-4 py-3 rounded border text-sm font-medium transition-colors ${
+                            showInfrastructure
+                                ? 'bg-orange-500/20 border-orange-500 text-orange-400'
+                                : 'bg-transparent border-slate-500/30 text-slate-500 hover:border-orange-500/50'
+                        }`}
+                    >
+                        {showInfrastructure ? '✓' : ''} 🏗️ Infrastructure Layer
+                    </button>
+                    {showInfrastructure && (
+                        <p className="text-xs text-slate-500 mt-2">
+                            Water mains, sewage troughs, power coils, waste chutes, greywater recovery
                         </p>
                     )}
                 </div>

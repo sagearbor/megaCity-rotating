@@ -11,6 +11,7 @@ const ShowcaseDetailsLazy = lazy(() => import('./ShowcaseDetails').then(m => ({ 
 const ShowcaseGroundAmenitiesLazy = lazy(() => import('./ShowcaseGroundAmenities').then(m => ({ default: m.ShowcaseGroundAmenities })));
 const ShowcaseForestLazy = lazy(() => import('./ShowcaseForest').then(m => ({ default: m.ShowcaseForest })));
 const ShowcaseBeaconLazy = lazy(() => import('./ShowcaseBeacon'));
+import InfrastructureOverlay from './InfrastructureOverlay';
 
 interface SceneProps {
   rings: RingConfig[];
@@ -24,6 +25,7 @@ interface SceneProps {
   showRooftopAmenities?: boolean;
   showGroundAmenities?: boolean;
   showSolarPanels?: boolean;
+  showInfrastructure?: boolean;
   onHover?: (info: HoverInfo | null) => void;
 }
 
@@ -1368,7 +1370,7 @@ const MemoizedParkZones: React.FC<{
     );
 };
 
-const SceneContent: React.FC<SceneProps> = ({ rings, walkways, simState, resetTrigger, isDarkMode, globalOpacity, showUtilities = false, showTunnels = false, showRooftopAmenities = true, showGroundAmenities = true, showSolarPanels = true, onHover }) => {
+const SceneContent: React.FC<SceneProps> = ({ rings, walkways, simState, resetTrigger, isDarkMode, globalOpacity, showUtilities = false, showTunnels = false, showRooftopAmenities = true, showGroundAmenities = true, showSolarPanels = true, showInfrastructure = false, onHover }) => {
   const controlsRef = useRef<any>(null);
 
   useEffect(() => {
@@ -1555,6 +1557,11 @@ const SceneContent: React.FC<SceneProps> = ({ rings, walkways, simState, resetTr
           />
         )}
       </Suspense>
+
+      {/* Infrastructure Overlay — water, sewage, power, waste, greywater */}
+      {showInfrastructure && (
+        <InfrastructureOverlay rings={rings} isDarkMode={isDarkMode} simState={simState} />
+      )}
 
       <OrbitControls 
         ref={controlsRef}
