@@ -1,3 +1,5 @@
+> Historical implementation record. Superseded by [the current feasibility brief](briefing/FEASIBILITY_BRIEF.md) and README. Completion statements below describe earlier software tasks, not engineering validation.
+
 # Next Session Fixes - Priority Issues
 
 ## Issue 1: Infrastructure Page - Rotary Union Diagram Incorrect (HIGH PRIORITY)

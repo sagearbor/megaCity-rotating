@@ -1,3 +1,5 @@
+> Historical implementation record. Superseded by [the current feasibility brief](briefing/FEASIBILITY_BRIEF.md) and README. Completion statements below describe earlier software tasks, not engineering validation.
+
 # Infrastructure Page Implementation Summary
 
 ## Implementation Status: PHASE 1 COMPLETE

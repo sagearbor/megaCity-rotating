@@ -1,88 +1,15 @@
-import { GoogleGenAI } from "@google/genai";
-import { RingConfig, AIAnalysisResult } from "../types";
-
-const apiKey = process.env.API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
-
-export const analyzeStructure = async (rings: RingConfig[], query: string): Promise<AIAnalysisResult> => {
-  if (!apiKey) {
-    return {
-      title: "API Key Missing",
-      content: "Please configure your Gemini API Key to access the AI Architect.",
-      type: 'structural'
-    };
-  }
-
-  const model = "gemini-3-flash-preview";
-  
-  const systemContext = `
-    You are the Chief Architect of "The Rotunda", a unique ground-based megacity.
-    
-    KEY ARCHITECTURE SPECS:
-    - 8 Concentric Toroids (Rings) + Central Hub.
-    - Material: Reinforced brick/masonry (Neo-Babylonian industrial aesthetic).
-    - MECHANICS: 
-      - Adjacent rings rotate in OPPOSITE directions (CW/CCW).
-      - Rings rotate at a constant edge speed of ~0.5 m/s (approx walking speed).
-    - BRIDGE SYSTEM:
-      - 112 Static Bridges total (16 per gap).
-      - Bridges are FIXED to the ground/gap. They DO NOT rotate.
-      - Bridges are STAGGERED vertically across floors 2-9.
-    
-    TRANSIT EXPERIENCE:
-    - To cross rings, one walks to the edge of their rotating building.
-    - When a static bridge appears (relative to them), they step off the moving ring onto the stationary bridge.
-    - They cross the 150m gap.
-    - They step ONTO the next ring, which is moving in the opposite direction.
-    - It feels like stepping off a very slow carousel.
-    
-    User Query: "${query}"
-    
-    Answer as if you are maintaining this complex kinetic city. Discuss the "Step-off" maneuver, the dizzying visual of alternating horizons, and the convenience of vertical bridge staggering.
-    Output in Markdown.
-  `;
-
-  try {
-    const response = await ai.models.generateContent({
-      model,
-      contents: systemContext,
-      config: {
-        thinkingConfig: { thinkingBudget: 0 },
-      }
-    });
-
-    return {
-      title: "Architect's Note",
-      content: response.text || "No analysis generated.",
-      type: 'structural'
-    };
-  } catch (error) {
-    console.error("Gemini API Error:", error);
-    return {
-      title: "Connection Error",
-      content: "Failed to reach the architectural database. Please try again.",
-      type: 'logistical'
-    };
-  }
-};
-
-export const generateLore = async (rings: RingConfig[]): Promise<string> => {
-    if (!apiKey) return "API Key required for lore generation.";
-    
-    const model = "gemini-3-flash-preview";
-    const prompt = `
-      Write a short archive entry (max 100 words) about life in "The Rotunda". 
-      Focus on the unique transit experience: The "Step-Off" where citizens step from a moving ring onto a static bridge, and the view of the next ring spinning the opposite way. 
-      Mention the staggered bridges on different floors.
-    `;
-
-    try {
-        const response = await ai.models.generateContent({
-            model,
-            contents: prompt,
-        });
-        return response.text || "";
-    } catch (e) {
-        return "Lore generation unavailable.";
-    }
-};
+import { RingConfig, AIAnalysisResult } from '../types';
+// Public static site: never embed API keys in a browser bundle.
+// A future authenticated server integration can replace these explicit offline notes.
+export async function analyzeStructure(rings: RingConfig[], query: string): Promise<AIAnalysisResult> {
+  const topic = /water|sewage|waste|plumb/i.test(query) ? 'Utilities' : /power|energy|electric|gas/i.test(query) ? 'Electricity' : 'City concept';
+  const notes = {
+    Utilities: 'The current study compares covered gravity collection, pumped sealed transfer and buffered docking. No city-scale moving interface is validated. Protected potable supply, fire water, wastewater containment and outage storage require separate engineering. Open the Infrastructure page for the full options study.',
+    Electricity: 'The working baseline is all-electric. Compare segmented inductive transfer with protected conductor rails. Capacity, losses, grounding, protection and backup remain open. The ring is not credited as an energy-storage system. Inspect the Project brief for demand assumptions.',
+    'City concept': `This editable visualization currently contains ${rings.filter(r => r.id !== 'hub').length} concept rings. It is not a structural simulation. Ring support, drive systems, protected access and emergency evacuation require professional studies. Use the Project brief to review the published baseline, initial risks and proposed commission.`
+  };
+  return {title:`${topic} · offline design note`, content:notes[topic], type:'logistical'};
+}
+export async function generateLore(_rings: RingConfig[]): Promise<string> {
+  return 'Illustrative vignette, not a performance claim: morning light reaches a courtyard as a neighborhood slowly changes its view. People walk to school and shared gardens within their own ring. Regional journeys use the fixed transit network. At a protected interchange, movement is controlled by the transfer system. The experience depends on engineering that still needs to be developed and tested.';
+}

@@ -64,14 +64,16 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [isDarkMode, setIsDarkMode] = useState(true);
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('rotunda-theme');
+    let savedTheme: string | null = null;
+    try { savedTheme = localStorage.getItem('rotunda-theme'); } catch {}
     if (savedTheme) {
       setIsDarkMode(savedTheme === 'dark');
     }
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('rotunda-theme', isDarkMode ? 'dark' : 'light');
+    try { localStorage.setItem('rotunda-theme', isDarkMode ? 'dark' : 'light'); } catch {}
+    document.documentElement.classList.toggle('light-theme', !isDarkMode);
   }, [isDarkMode]);
 
   const colors = getColorPalette(isDarkMode);

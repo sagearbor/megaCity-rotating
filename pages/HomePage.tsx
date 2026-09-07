@@ -7,107 +7,9 @@ import { analyzeStructure, generateLore } from '../services/geminiService';
 import { ChevronDown, Activity, Info, X } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 
-const RING_WIDTH = 300;
-const GAP_WIDTH = 150;
-const BUILDING_HEIGHT = 60;
-const TARGET_EDGE_SPEED = 0.5;
+import { baseline, createCityRings } from '../model/design.mjs';
+const TARGET_EDGE_SPEED = baseline.speedMps;
 const TARGET_BRIDGE_SPACING = 80;
-const TARGET_SECTION_LENGTH = 400;
-const TARGET_UMBILICAL_SPACING = 1500;
-const MIN_UMBILICALS = 4;
-
-const calculateUmbilicalCount = (ringInnerRadius: number, ringOuterRadius: number): number => {
-  const midRadius = (ringInnerRadius + ringOuterRadius) / 2;
-  const circumference = 2 * Math.PI * midRadius;
-  const count = Math.max(MIN_UMBILICALS, Math.round(circumference / TARGET_UMBILICAL_SPACING));
-  return count % 2 === 0 ? count : count + 1;
-};
-
-const generateUmbilicals = (ring: RingConfig): UmbilicalTowerConfig[] => {
-  const umbilicals: UmbilicalTowerConfig[] = [];
-  const count = ring.umbilicalCount;
-  const angleStep = 360 / count;
-
-  const ringArea = Math.PI * (ring.outerRadius ** 2 - ring.innerRadius ** 2);
-  const waterPerM2 = 150;
-  const powerPerM2 = 0.05;
-
-  const totalWater = ringArea * waterPerM2;
-  const totalPower = ringArea * powerPerM2;
-
-  for (let i = 0; i < count; i++) {
-    umbilicals.push({
-      id: `${ring.id}-umb-${i}`,
-      ringId: ring.id,
-      anglePosition: i * angleStep,
-      innerRadius: ring.innerRadius,
-      height: ring.height,
-      waterCapacityLitersPerDay: totalWater / count,
-      powerCapacityMW: totalPower / count,
-      status: 'active'
-    });
-  }
-
-  return umbilicals;
-};
-
-const generateRings = (): RingConfig[] => {
-  const rings: RingConfig[] = [];
-
-  const hubRing: RingConfig = {
-    id: 'hub',
-    name: 'Central Hub',
-    innerRadius: 0,
-    outerRadius: 500,
-    height: 100,
-    rotationSpeed: 0,
-    color: '#cbd5e1',
-    floorCount: 25,
-    sectionCount: 1,
-    umbilicalCount: 0,
-    umbilicals: []
-  };
-  rings.push(hubRing);
-
-  let currentInner = 500;
-
-  for (let i = 0; i < 8; i++) {
-    const ringNum = i + 1;
-    const outer = currentInner + RING_WIDTH;
-    const avgRadius = (currentInner + outer) / 2;
-    const circumference = 2 * Math.PI * avgRadius;
-
-    const idealSectionCount = Math.round(circumference / TARGET_SECTION_LENGTH);
-    const sectionCount = Math.max(4, idealSectionCount % 2 === 0 ? idealSectionCount : idealSectionCount + 1);
-
-    const omegaRadSec = TARGET_EDGE_SPEED / avgRadius;
-    const speedDegMin = omegaRadSec * (180 / Math.PI) * 60;
-
-    const direction = i % 2 === 0 ? -1 : 1;
-    const umbilicalCount = calculateUmbilicalCount(currentInner, outer);
-
-    const ring: RingConfig = {
-      id: `r${ringNum}`,
-      name: `Ring ${ringNum}`,
-      innerRadius: currentInner,
-      outerRadius: outer,
-      height: BUILDING_HEIGHT,
-      rotationSpeed: speedDegMin * direction,
-      color: i % 2 === 0 ? '#e2e8f0' : '#fdba74',
-      floorCount: 15,
-      sectionCount: sectionCount,
-      umbilicalCount: umbilicalCount,
-      umbilicals: []
-    };
-
-    ring.umbilicals = generateUmbilicals(ring);
-    rings.push(ring);
-
-    currentInner = outer + GAP_WIDTH;
-  }
-  return rings;
-};
-
 const generateWalkways = (rings: RingConfig[]): WalkwayConfig[] => {
   const walkways: WalkwayConfig[] = [];
 
@@ -138,26 +40,26 @@ const generateWalkways = (rings: RingConfig[]): WalkwayConfig[] => {
   return walkways;
 };
 
-const INITIAL_RINGS = generateRings();
-const INITIAL_WALKWAYS = generateWalkways(INITIAL_RINGS);
+const INITIAL_RINGS = createCityRings() as RingConfig[];
 
 export default function HomePage() {
   const { isDarkMode, setIsDarkMode } = useTheme();
   const [rings, setRings] = useState<RingConfig[]>(INITIAL_RINGS);
-  const [walkways] = useState<WalkwayConfig[]>(INITIAL_WALKWAYS);
+  const walkways = useMemo(() => generateWalkways(rings), [rings]);
 
   const [simState, setSimState] = useState<SimulationState>({
-    isPlaying: true,
+    isPlaying: false,
     timeScale: 200.0,
     currentTime: 0
   });
 
   const [globalOpacity, setGlobalOpacity] = useState(1.0);
   const [showUtilities, setShowUtilities] = useState(false);
-  const [showTunnels, setShowTunnels] = useState(true);
+  const [showTunnels, setShowTunnels] = useState(false);
   const [showSolarPanels, setShowSolarPanels] = useState(true);
-  const [showRooftopAmenities, setShowRooftopAmenities] = useState(true);
-  const [showGroundAmenities, setShowGroundAmenities] = useState(true);
+  const [showRooftopAmenities, setShowRooftopAmenities] = useState(false);
+  const [showGroundAmenities, setShowGroundAmenities] = useState(false);
+  const [showInfrastructure, setShowInfrastructure] = useState(false);
 
   const [visibleFloorGroups, setVisibleFloorGroups] = useState({
     low: true,
@@ -165,7 +67,7 @@ export default function HomePage() {
     high: true
   });
 
-  const [statusOpen, setStatusOpen] = useState(true);
+  const [statusOpen, setStatusOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
 
   const [aiModalOpen, setAiModalOpen] = useState(false);
@@ -188,7 +90,7 @@ export default function HomePage() {
     setAiModalOpen(true);
     const lore = await generateLore(rings);
     setAiResult({
-        title: "City Archives",
+        title: "Illustrative city vignette",
         content: lore,
         type: 'philosophical'
     });
@@ -204,12 +106,14 @@ export default function HomePage() {
   };
 
   const handleReset = () => {
-    setSimState(s => ({ ...s, isPlaying: true, currentTime: 0 }));
+    setRings(createCityRings() as RingConfig[]);
+    setSimState(s => ({ ...s, isPlaying: false, currentTime: 0 }));
     setResetCameraTrigger(t => t + 1);
   };
 
   return (
-    <div className={`w-full h-screen relative overflow-hidden transition-colors duration-700 ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900'}`}>
+    <div style={{height:"min(85svh, 900px)", minHeight:560}} className={`w-full relative overflow-hidden transition-colors duration-700 ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900'}`}>
+      <div className="explorer-notice">Concept model · {simState.isPlaying ? `${simState.timeScale}× motion` : "Paused"} · Open settings for layers</div>
       <div className="absolute inset-0 z-0">
          <ArchitecturalScene
             rings={rings}
@@ -223,6 +127,7 @@ export default function HomePage() {
             showSolarPanels={showSolarPanels}
             showRooftopAmenities={showRooftopAmenities}
             showGroundAmenities={showGroundAmenities}
+            showInfrastructure={showInfrastructure}
             onHover={setHoverInfo}
          />
       </div>
@@ -251,6 +156,8 @@ export default function HomePage() {
         setShowRooftopAmenities={setShowRooftopAmenities}
         showGroundAmenities={showGroundAmenities}
         setShowGroundAmenities={setShowGroundAmenities}
+        showInfrastructure={showInfrastructure}
+        setShowInfrastructure={setShowInfrastructure}
       />
 
       <div className="absolute top-6 right-6 z-20 flex flex-col items-end">
@@ -269,25 +176,23 @@ export default function HomePage() {
                 </h2>
                 <div className={`space-y-4 text-sm leading-relaxed ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
                     <p>
-                        A <strong className="text-sky-500">concentric city model</strong> designed to maximize density while minimizing transit times.
-                        Unlike linear cities, the Rotunda brings all points closer together through rotation.
+                        A <strong className="text-sky-500">concentric city model</strong> exploring density, shared landscape and movement.
+                        Transport benefit versus a static city has not been demonstrated.
                     </p>
 
                     <div>
                         <h4 className={`font-semibold mb-1 ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>Transit Mechanics</h4>
                         <p>
                             Rings rotate in <span className="text-amber-500 font-mono">alternating directions</span>.
-                            To travel, citizens step onto a static bridge, wait for their destination sector to align, and step off.
-                            At 0.5 m/s, a new sector arrives every few minutes.
+                            Protected, accessible transfers and safe evacuation at any ring angle require engineering development.
+                            A full revolution takes about 2.8–13.8 hours at the baseline speed.
                         </p>
                     </div>
 
                     <div>
                         <h4 className={`font-semibold mb-1 ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>Capacity</h4>
                         <p>
-                            With 8 active rings and average building height of 20 floors (simulated here as approximately 15),
-                            this structure houses approximately <strong className="text-emerald-500">12 Million</strong> inhabitants
-                            within a 5km radius.
+                            The baseline has 8 rings, 15 floors per ring and an 8.2 km overall diameter. Indicative population depends on coverage and net residential area; see the Project brief scenario model.
                         </p>
                     </div>
                 </div>
@@ -307,14 +212,14 @@ export default function HomePage() {
         {statusOpen && (
             <div className={`backdrop-blur-md p-6 rounded-xl border shadow-2xl max-w-sm animate-fade-in-up ${isDarkMode ? 'bg-slate-900/90 border-amber-900/50' : 'bg-white/90 border-amber-200'}`}>
                 <h3 className={`font-bold text-sm mb-2 tracking-wider flex items-center gap-2 ${isDarkMode ? 'text-amber-500' : 'text-amber-600'}`}>
-                    <Activity size={14} /> SYSTEM STATUS
+                    <Activity size={14} /> MODEL SETTINGS
                 </h3>
                 <div className="space-y-2">
                     <p className={`text-xs leading-relaxed ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-                        <strong className={isDarkMode ? 'text-slate-100' : 'text-slate-800'}>Configuration:</strong> 8 Alternating Toroids
+                        <strong className={isDarkMode ? 'text-slate-100' : 'text-slate-800'}>Configuration:</strong> {rings.filter(r => r.id !== "hub").length} Concept Rings
                     </p>
                     <p className={`text-xs leading-relaxed ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-                        <strong className="text-sky-500">Bridge System:</strong> {visibleWalkways.length} Active Units.
+                        <strong className="text-sky-500">Bridge System:</strong> {visibleWalkways.length} Indicative Links.
                     </p>
                     <div className={`h-px my-2 ${isDarkMode ? 'bg-slate-700' : 'bg-slate-200'}`}></div>
                     <div className={`grid grid-cols-2 gap-2 text-[10px] font-mono ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
@@ -345,6 +250,7 @@ export default function HomePage() {
             top: Math.min(hoverInfo.position.y + 15, window.innerHeight - 120),
           }}
         >
+          <p className="text-xs mb-2">Illustrative geometry · not engineered</p>
           <div className="flex items-center gap-2 mb-1">
             <span className={`w-2 h-2 rounded-full ${
               hoverInfo.type === 'rooftop-garden' ? 'bg-green-500' :

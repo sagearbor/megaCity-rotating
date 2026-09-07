@@ -28,12 +28,14 @@ export const Ring34GapAmenities: React.FC<Ring34GapAmenitiesProps> = ({
     path: isDarkMode ? '#94a3b8' : '#64748b', // slate
   };
 
-  const handleHover = (name: string, type: string) => (e: ThreeEvent<PointerEvent>) => {
+  const handleHover = (name: string, type: HoverInfo['type']) => (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
     if (onHover) {
       onHover({
         name,
         type,
+        description: 'Illustrative recreation facility; design and sizing remain to be developed.',
+        position: {x:e.clientX,y:e.clientY},
         details: `Recreation facility in Ring 3-4 gap`,
       });
     }
@@ -68,7 +70,7 @@ export const Ring34GapAmenities: React.FC<Ring34GapAmenitiesProps> = ({
         {/* Main exercise pad */}
         <mesh
           position={[0, 0.5, 0]}
-          onPointerOver={handleHover('Outdoor Exercise Area', 'Recreation')}
+          onPointerOver={handleHover('Outdoor Exercise Area', 'recreation')}
           onPointerOut={handleHoverEnd}
         >
           <boxGeometry args={[25, 1, 25]} />
@@ -80,7 +82,7 @@ export const Ring34GapAmenities: React.FC<Ring34GapAmenitiesProps> = ({
           <mesh
             key={i}
             position={[offset, 2.5, 0]}
-            onPointerOver={handleHover('Exercise Equipment', 'Fitness')}
+            onPointerOver={handleHover('Exercise Equipment', 'outdoor-gym')}
             onPointerOut={handleHoverEnd}
           >
             <boxGeometry args={[3, 4, 3]} />
@@ -98,7 +100,7 @@ export const Ring34GapAmenities: React.FC<Ring34GapAmenitiesProps> = ({
               {/* Table top */}
               <mesh
                 position={[0, 3, 0]}
-                onPointerOver={handleHover('Picnic Table', 'Dining')}
+                onPointerOver={handleHover('Picnic Table', 'picnic')}
                 onPointerOut={handleHoverEnd}
               >
                 <boxGeometry args={[6, 0.3, 3]} />
@@ -141,7 +143,7 @@ export const Ring34GapAmenities: React.FC<Ring34GapAmenitiesProps> = ({
         {/* Play structure */}
         <mesh
           position={[0, 2.5, 0]}
-          onPointerOver={handleHover('Play Structure', 'Playground')}
+          onPointerOver={handleHover('Play Structure', 'playground')}
           onPointerOut={handleHoverEnd}
         >
           <boxGeometry args={[12, 5, 12]} />
@@ -152,7 +154,7 @@ export const Ring34GapAmenities: React.FC<Ring34GapAmenitiesProps> = ({
         <mesh
           position={[8, 2, 0]}
           rotation={[0, 0, Math.PI / 6]}
-          onPointerOver={handleHover('Slide', 'Playground')}
+          onPointerOver={handleHover('Slide', 'playground')}
           onPointerOut={handleHoverEnd}
         >
           <boxGeometry args={[2, 8, 3]} />
@@ -170,7 +172,7 @@ export const Ring34GapAmenities: React.FC<Ring34GapAmenitiesProps> = ({
             {/* Swing seat */}
             <mesh
               position={[0, 2, 0]}
-              onPointerOver={handleHover('Swing', 'Playground')}
+              onPointerOver={handleHover('Swing', 'playground')}
               onPointerOut={handleHoverEnd}
             >
               <boxGeometry args={[1.5, 0.3, 1.5]} />
@@ -194,7 +196,7 @@ export const Ring34GapAmenities: React.FC<Ring34GapAmenitiesProps> = ({
             <mesh
               key={`${i}-${j}`}
               position={[x, 0.5, z]}
-              onPointerOver={handleHover(`Garden Plot ${i * 3 + j + 1}`, 'Community Garden')}
+              onPointerOver={handleHover(`Garden Plot ${i * 3 + j + 1}`, 'rooftop-garden')}
               onPointerOut={handleHoverEnd}
             >
               <boxGeometry args={[3, 1, 3]} />
@@ -206,7 +208,7 @@ export const Ring34GapAmenities: React.FC<Ring34GapAmenitiesProps> = ({
         {/* Tool shed */}
         <mesh
           position={[18, 2, 0]}
-          onPointerOver={handleHover('Garden Tool Shed', 'Storage')}
+          onPointerOver={handleHover('Garden Tool Shed', 'storage')}
           onPointerOut={handleHoverEnd}
         >
           <boxGeometry args={[4, 4, 4]} />
@@ -219,7 +221,7 @@ export const Ring34GapAmenities: React.FC<Ring34GapAmenitiesProps> = ({
             <mesh
               key={`${i}-${j}`}
               position={[x, 1.5, z]}
-              onPointerOver={handleHover('Composter', 'Garden')}
+              onPointerOver={handleHover('Composter', 'botanical-garden')}
               onPointerOut={handleHoverEnd}
             >
               <cylinderGeometry args={[1, 1, 3]} />
@@ -234,7 +236,7 @@ export const Ring34GapAmenities: React.FC<Ring34GapAmenitiesProps> = ({
         {/* Stage */}
         <mesh
           position={[0, 1, 0]}
-          onPointerOver={handleHover('Amphitheater Stage', 'Performance')}
+          onPointerOver={handleHover('Amphitheater Stage', 'amphitheater')}
           onPointerOut={handleHoverEnd}
         >
           <boxGeometry args={[20, 2, 15]} />
@@ -262,7 +264,7 @@ export const Ring34GapAmenities: React.FC<Ring34GapAmenitiesProps> = ({
           <group key={i} position={[0, 0, 15 + tier * 4]}>
             <mesh
               position={[0, 0.5 + tier * 0.5, 0]}
-              onPointerOver={handleHover(`Seating Tier ${tier}`, 'Amphitheater')}
+              onPointerOver={handleHover(`Seating Tier ${tier}`, 'amphitheater')}
               onPointerOut={handleHoverEnd}
             >
               <boxGeometry args={[30 + tier * 4, 1, 3]} />
@@ -281,7 +283,7 @@ export const Ring34GapAmenities: React.FC<Ring34GapAmenitiesProps> = ({
             <mesh
               key={i}
               position={[r, 0.05, 0]}
-              onPointerOver={handleHover('Walking Path', 'Recreation')}
+              onPointerOver={handleHover('Walking Path', 'recreation')}
               onPointerOut={handleHoverEnd}
             >
               <boxGeometry args={[gapWidth / 10 + 2, 0.1, 5]} />

@@ -11,7 +11,7 @@ RUN npm ci
 # Copy source code and environment files
 COPY . .
 
-# Build the application (GEMINI_API_KEY from .env.local gets baked in)
+# Build the static application; no browser API credentials
 RUN npm run build
 
 # Production stage - serve with nginx

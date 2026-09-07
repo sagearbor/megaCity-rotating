@@ -47,7 +47,7 @@ export interface AIAnalysisResult {
 }
 
 export interface HoverInfo {
-  type: 'rooftop-garden' | 'rooftop-restaurant' | 'pool' | 'soccer' | 'baseball' | 'forest' | 'woods' | 'stream' | 'tunnel' | 'bridge' | 'solar-canopy' | 'umbilical' | 'ring' | 'skatepark' | 'outdoor-gym' | 'dog-park' | 'koi-pond' | 'food-truck' | 'farmers-market' | 'basketball' | 'picnic' | 'fountain' | 'botanical-garden' | 'mini-golf';
+  type: 'rooftop-garden' | 'rooftop-restaurant' | 'pool' | 'soccer' | 'baseball' | 'forest' | 'woods' | 'stream' | 'tunnel' | 'bridge' | 'solar-canopy' | 'umbilical' | 'ring' | 'skatepark' | 'outdoor-gym' | 'dog-park' | 'koi-pond' | 'food-truck' | 'farmers-market' | 'basketball' | 'picnic' | 'fountain' | 'botanical-garden' | 'mini-golf' | 'recreation' | 'playground' | 'storage' | 'amphitheater';
   name: string;
   description: string;
   details?: string;

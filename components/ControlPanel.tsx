@@ -13,7 +13,7 @@ interface ControlPanelProps {
   visibleFloorGroups: { low: boolean; mid: boolean; high: boolean };
   setVisibleFloorGroups: React.Dispatch<React.SetStateAction<{ low: boolean; mid: boolean; high: boolean }>>;
   isDarkMode: boolean;
-  setIsDarkMode: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsDarkMode: (value: boolean) => void;
   globalOpacity: number;
   setGlobalOpacity: React.Dispatch<React.SetStateAction<number>>;
   showUtilities: boolean;
@@ -45,7 +45,13 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   const [isOpen, setIsOpen] = useState(false);
 
   const handleUpdateRing = (id: string, field: keyof RingConfig, value: any) => {
-    setRings(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
+    if (typeof value === 'number' && !Number.isFinite(value)) return;
+    setRings(prev => prev.map(r => {
+      if (r.id !== id) return r;
+      if (field === 'outerRadius') value = Math.max(r.innerRadius + 30, value);
+      if (field === 'sectionCount') value = Math.max(4, Math.round(value));
+      return { ...r, [field]: value };
+    }));
   };
 
   const handleGlobalColorChange = (color: string) => {
@@ -88,19 +94,19 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
         {/* Toggle Button (Always Visible) */}
         <button 
             onClick={() => setIsOpen(!isOpen)}
-            className={`absolute top-6 left-6 z-30 p-3 rounded-full shadow-xl transition-all hover:scale-105 ${isOpen ? 'translate-x-80' : 'translate-x-0'} ${isDarkMode ? 'bg-slate-800 text-white hover:bg-slate-700' : 'bg-white text-slate-800 hover:bg-slate-100'}`}
+            className={`absolute top-6 left-6 z-30 p-3 rounded-full shadow-xl transition-all hover:scale-105 ${isOpen ? 'translate-x-64' : 'translate-x-0'} ${isDarkMode ? 'bg-slate-800 text-white hover:bg-slate-700' : 'bg-white text-slate-800 hover:bg-slate-100'}`}
         >
             {isOpen ? <ChevronLeft size={24} /> : <Settings size={24} />}
         </button>
 
         {/* Sliding Panel */}
-        <div className={`absolute top-0 left-0 h-full w-96 backdrop-blur-md border-r flex flex-col z-20 shadow-2xl transition-transform duration-300 ease-in-out ${panelBg} ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className={`absolute top-0 left-0 h-full w-80 max-w-[calc(100vw-12px)] backdrop-blur-md border-r flex flex-col z-20 shadow-2xl transition-transform duration-300 ease-in-out ${panelBg} ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className={`p-6 pl-20 border-b flex items-center justify-between ${headerBg}`}>
             <div>
                 <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
                 Rotunda
                 </h1>
-                <p className={`text-xs mt-1 ${subText}`}>Procedural Kinetic City <span className="opacity-60">v0.03</span></p>
+                <p className={`text-xs mt-1 ${subText}`}>Procedural Kinetic City <span className="opacity-60">v0.1 · Concept</span></p>
             </div>
             <button 
                 onClick={() => setIsDarkMode(!isDarkMode)}
@@ -225,7 +231,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                     </button>
                     {showUtilities && (
                         <p className="text-xs text-slate-500 mt-2">
-                            Multi-passage rotary unions for water, sewage, and power transfer
+                            Indicative transfer locations; displayed loads are estimates, not equipment ratings
                         </p>
                     )}
 
@@ -301,11 +307,11 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                                 : 'bg-transparent border-slate-500/30 text-slate-500 hover:border-orange-500/50'
                         }`}
                     >
-                        {showInfrastructure ? '✓' : ''} 🏗️ Infrastructure Layer
+                        {showInfrastructure ? '✓' : ''} Utility route study
                     </button>
                     {showInfrastructure && (
                         <p className="text-xs text-slate-500 mt-2">
-                            Water mains, sewage troughs, power coils, waste chutes, greywater recovery
+                            Earlier route concepts only. See Infrastructure for the current options study.
                         </p>
                     )}
                 </div>
@@ -364,12 +370,12 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 
             {/* AI Features */}
             <div className="space-y-4">
-                <h2 className="text-sm font-semibold text-sky-500 uppercase tracking-wider">AI Consultant</h2>
+                <h2 className="text-sm font-semibold text-sky-500 uppercase tracking-wider">Design notes</h2>
                 <button 
                     onClick={onGenerateLore}
                     className="w-full py-2 px-3 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-lg hover:bg-purple-500/30 transition-colors text-sm flex items-center justify-center gap-2"
                 >
-                    <Info size={14} /> Generate Project Lore
+                    <Info size={14} /> Read a city vignette
                 </button>
                 <div className="flex gap-2">
                     <input 

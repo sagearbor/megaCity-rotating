@@ -1,6 +1,6 @@
-import React, { useRef, useMemo, useEffect, useCallback, Suspense, lazy } from 'react';
+import React, { useRef, useMemo, useEffect, useCallback, useState, Suspense, lazy } from 'react';
 import { Canvas, useFrame, ThreeEvent } from '@react-three/fiber';
-import { OrbitControls, Stars, Text, Edges, Cloud, Sky } from '@react-three/drei';
+import { OrbitControls, Html, Edges } from '@react-three/drei';
 import * as THREE from 'three';
 import { RingConfig, WalkwayConfig, SimulationState, UmbilicalTowerConfig, HoverInfo } from '../types';
 import { Ring12GapAmenities } from './Ring12GapAmenities';
@@ -12,6 +12,8 @@ const ShowcaseGroundAmenitiesLazy = lazy(() => import('./ShowcaseGroundAmenities
 const ShowcaseForestLazy = lazy(() => import('./ShowcaseForest').then(m => ({ default: m.ShowcaseForest })));
 const ShowcaseBeaconLazy = lazy(() => import('./ShowcaseBeacon'));
 import InfrastructureOverlay from './InfrastructureOverlay';
+import BridgeNetwork from './BridgeNetwork';
+import {MotionProvider, useSimulationSeconds, RotatingGroup} from './Motion';
 
 interface SceneProps {
   rings: RingConfig[];
@@ -34,11 +36,9 @@ const FLOOR_HEIGHT = 4; // meters
 const CityRing: React.FC<{ ring: RingConfig; simState: SimulationState; isDarkMode: boolean; globalOpacity: number; showRooftopAmenities?: boolean; onHover?: (info: HoverInfo | null) => void }> = ({ ring, simState, isDarkMode, globalOpacity, showRooftopAmenities = true, onHover }) => {
   const meshRef = useRef<THREE.Group>(null);
   
-  useFrame((state, delta) => {
-    if (meshRef.current && simState.isPlaying) {
-      const radPerSec = (ring.rotationSpeed / 60) * (Math.PI / 180);
-      meshRef.current.rotation.y += radPerSec * delta * simState.timeScale;
-    }
+  const seconds = useSimulationSeconds();
+  useFrame(() => {
+    if (meshRef.current) meshRef.current.rotation.y = ring.rotationSpeed / 60 * Math.PI / 180 * seconds.current;
   });
 
   // Create geometry for a SINGLE sector
@@ -148,7 +148,7 @@ const CityRing: React.FC<{ ring: RingConfig; simState: SimulationState; isDarkMo
             <group key={i} rotation={[0, -angle, 0]}>
                 <mesh geometry={segmentGeometry} rotation={[Math.PI / 2, 0, 0]} position={[0, ring.height, 0]}>
                     <meshStandardMaterial 
-                        color={ring.color} 
+                        color={ring.id === 'r2' && i === 0 ? '#f0c295' : ring.color}
                         roughness={0.7} 
                         metalness={isDarkMode ? 0.3 : 0.1}
                         map={topTexture}
@@ -217,16 +217,7 @@ const CityRing: React.FC<{ ring: RingConfig; simState: SimulationState; isDarkMo
             But the user wants to SEE rotation. 
             Let's keep text static relative to world, but maybe place it above just one spot?
             Actually, let's attach it to the first segment so it spins. */}
-         <Text 
-            position={[ring.outerRadius, ring.height + 120, 0]} 
-            rotation={[0, Math.PI/2, 0]} // Billboarded? No, let it spin
-            fontSize={80}
-            color={isDarkMode ? "white" : "#1e293b"}
-            anchorX="center"
-            anchorY="middle"
-        >
-            {ring.name}
-        </Text>
+         <Html position={[ring.outerRadius, ring.height + 120, 0]} center style={{pointerEvents:'none',whiteSpace:'nowrap',fontSize:12,color:isDarkMode?'#fff':'#172b23'}}>{ring.name}</Html>
     </group>
   );
 };
@@ -682,11 +673,9 @@ const UmbilicalTower: React.FC<{
 }> = ({ config, ring, simState, isDarkMode, onHover }) => {
   const meshRef = useRef<THREE.Group>(null);
 
-  useFrame((state, delta) => {
-    if (meshRef.current && simState.isPlaying) {
-      const radPerSec = (ring.rotationSpeed / 60) * (Math.PI / 180);
-      meshRef.current.rotation.y += radPerSec * delta * simState.timeScale;
-    }
+  const seconds = useSimulationSeconds();
+  useFrame(() => {
+    if (meshRef.current) meshRef.current.rotation.y = ring.rotationSpeed / 60 * Math.PI / 180 * seconds.current;
   });
 
   const angleRad = (config.anglePosition * Math.PI) / 180;
@@ -704,8 +693,8 @@ const UmbilicalTower: React.FC<{
           onHover?.({
             type: 'umbilical',
             name: 'Umbilical Tower',
-            description: 'Utility conduit providing water, power, and data to the rotating ring.',
-            details: `Status: ${config.status} • Water: ${Math.round(config.waterCapacityLitersPerDay/1000)}k L/day • Power: ${config.powerCapacityMW.toFixed(1)} MW`,
+            description: 'Indicative transfer location. Interface type and equipment ratings are not validated.',
+            details: `Study allocation • Water: ${Math.round(config.waterCapacityLitersPerDay/1000)}k L/day • Power: ${config.powerCapacityMW.toFixed(1)} MW`,
             position: { x: e.clientX, y: e.clientY }
           });
         }}
@@ -1382,21 +1371,9 @@ const SceneContent: React.FC<SceneProps> = ({ rings, walkways, simState, resetTr
   return (
     <>
       <ambientLight intensity={isDarkMode ? 0.4 : 0.8} />
-      <directionalLight position={[2000, 4000, 1000]} intensity={isDarkMode ? 1.5 : 2.0} castShadow shadow-bias={-0.0005} />
+      <directionalLight position={[2000, 4000, 1000]} intensity={isDarkMode ? 1.5 : 2.0}  />
       <hemisphereLight color={isDarkMode ? "#bae6fd" : "#fff"} groundColor={isDarkMode ? "#0f172a" : "#e2e8f0"} intensity={0.5} />
       
-      {isDarkMode ? (
-          <>
-            <Stars radius={8000} depth={100} count={8000} factor={6} saturation={0} fade speed={0.1} />
-            <Cloud opacity={0.3} speed={0.2} bounds={[5000, 200, 5000]} segments={20} position={[0, 200, 0]} color="#a5b4fc" />
-          </>
-      ) : (
-          <>
-            <Sky sunPosition={[1000, 500, 100]} turbidity={0.5} rayleigh={0.5} />
-            <Cloud opacity={0.5} speed={0.1} bounds={[5000, 500, 5000]} segments={40} position={[0, 400, 0]} color="#ffffff" />
-          </>
-      )}
-
       {/* Ground Plane */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -2, 0]}>
           <planeGeometry args={[25000, 25000]} />
@@ -1410,9 +1387,7 @@ const SceneContent: React.FC<SceneProps> = ({ rings, walkways, simState, resetTr
         <CityRing key={ring.id} ring={ring} simState={simState} isDarkMode={isDarkMode} globalOpacity={globalOpacity} showRooftopAmenities={showRooftopAmenities} onHover={onHover} />
       ))}
 
-      {walkways.map(w => (
-          <StaticBridge key={w.id} config={w} rings={rings} isDarkMode={isDarkMode} showSolarPanels={showSolarPanels} onHover={onHover} />
-      ))}
+      <BridgeNetwork rings={rings} walkways={walkways} isDarkMode={isDarkMode} showSolarPanels={showSolarPanels} onHover={onHover}/>
 
       {/* Umbilical Towers */}
       {showUtilities && rings.map(ring =>
@@ -1437,14 +1412,14 @@ const SceneContent: React.FC<SceneProps> = ({ rings, walkways, simState, resetTr
         if (!ring2) return null;
 
         return (
-          <group>
+          <RotatingGroup speed={ring2.rotationSpeed}>
             <ShowcaseRooftopAmenities
               ringOuterRadius={ring2.outerRadius}
               ringHeight={ring2.height}
               isDarkMode={isDarkMode}
               onHover={onHover}
             />
-          </group>
+          </RotatingGroup>
         );
       })()}
 
@@ -1552,7 +1527,7 @@ const SceneContent: React.FC<SceneProps> = ({ rings, walkways, simState, resetTr
         {/* Showcase Beacon - Visible marker */}
         {showGroundAmenities && (
           <ShowcaseBeaconLazy
-            position={[1175, 0, 0]}
+            position={[(rings.find(r => r.id === 'r2')?.outerRadius ?? 1400) + 75, 0, 0]}
             isDarkMode={isDarkMode}
           />
         )}
@@ -1580,15 +1555,17 @@ const SceneContent: React.FC<SceneProps> = ({ rings, walkways, simState, resetTr
 };
 
 export const ArchitecturalScene: React.FC<SceneProps> = (props) => {
+  const [visible,setVisible]=useState(!document.hidden);
+  useEffect(()=>{const update=()=>setVisible(!document.hidden);document.addEventListener('visibilitychange',update);return()=>document.removeEventListener('visibilitychange',update);},[]);
   return (
     <div className={`w-full h-full ${props.isDarkMode ? 'bg-slate-950' : 'bg-sky-50'}`}>
       <Canvas 
         camera={{ position: [0, 5000, 5000], fov: 40, far: 30000 }} 
-        shadows
-        dpr={[1, 2]} 
+        frameloop={props.simState.isPlaying && visible ? 'always' : 'demand'}
+        dpr={[1, 1.5]}
         gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
       >
-        <SceneContent {...props} />
+        <MotionProvider simState={props.simState} resetTrigger={props.resetTrigger}><SceneContent {...props} /></MotionProvider>
         {props.isDarkMode ? (
              <fog attach="fog" args={['#0f172a', 3000, 20000]} />
         ) : (

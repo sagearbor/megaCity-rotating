@@ -1,3 +1,5 @@
+> Historical implementation record. Superseded by [the current feasibility brief](briefing/FEASIBILITY_BRIEF.md) and README. Completion statements below describe earlier software tasks, not engineering validation.
+
 # Rotunda Architect - Implementation Summary
 
 ## Session Completed: 2026-01-11

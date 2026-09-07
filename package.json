@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "build": "node scripts/generate-brief.mjs && vite build",
+    "preview": "vite preview",
+    "check": "tsc --noEmit",
+    "test": "node --test model/design.test.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.35.0",
@@ -21,6 +23,9 @@
   "devDependencies": {
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "autoprefixer": "^10.5.5",
+    "postcss": "^8.5.28",
+    "tailwindcss": "^3.4.17",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }
