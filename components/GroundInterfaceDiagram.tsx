@@ -9,8 +9,8 @@ export function GroundInterfaceDiagram({ playing }: { playing: boolean }) {
       </defs>
       <text x="30" y="35" fill="var(--accent)" fontSize="14" letterSpacing="2">RADIAL SECTION / SELECTED WORKING HYPOTHESIS</text>
       <text x="970" y="35" textAnchor="end" fill="var(--muted)" fontSize="13">Not sized for construction</text>
-      <path className="motion-stroke" d="M240 72H760" stroke="var(--accent)" strokeWidth="2" markerEnd="url(#motion-arrow)"/>
-      <text x="500" y="62" textAnchor="middle" fill="var(--text)" fontSize="15">0.5 m/s tangential motion</text>
+      <path  d="M475 82H525" stroke="var(--accent)" strokeWidth="2" markerEnd="url(#motion-arrow)"/>
+      <text x="500" y="62" textAnchor="middle" fill="var(--text)" fontSize="15">Tangential motion is perpendicular to this radial section</text>
 
       <path d="M145 220V112H855V220Z" fill="url(#module-fill)" stroke="var(--accent)" strokeWidth="2"/>
       <path d="M215 112V220M500 112V220M785 112V220" stroke="var(--line)" strokeDasharray="5 6"/>
@@ -28,7 +28,7 @@ export function GroundInterfaceDiagram({ playing }: { playing: boolean }) {
       <text x="500" y="326" textAnchor="middle" fill="var(--muted)" fontSize="13">Center rail band</text>
       <text x="730" y="326" textAnchor="middle" fill="var(--muted)" fontSize="13">Outer rail band</text>
       <path d="M182 286V304H212" fill="none" stroke="var(--accent)" strokeWidth="2"/>
-      <text x="176" y="278" textAnchor="end" fill="var(--text)" fontSize="13">Lateral guide + uplift restraint</text>
+      <text x="30" y="250" textAnchor="start" fill="var(--text)" fontSize="13">Guide + hold-down</text>
 
       <path d="M115 337H885V420H115Z" fill="var(--park)" stroke="var(--line)"/>
       <path d="M155 420V458M270 420V458M385 420V458M500 420V458M615 420V458M730 420V458M845 420V458" stroke="var(--muted)" strokeWidth="9"/>

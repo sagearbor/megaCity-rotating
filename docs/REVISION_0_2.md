@@ -24,7 +24,7 @@ The calculation source produces about 601 modules and 14,340 bogie positions fro
 
 ## Freshwater decision
 
-Top-fed potable water is rejected because it lifts the full city flow above the occupied ring, exposes supply to weather and contamination, and still requires storage and pressure control. Hub-fed water is rejected because outer supply crosses multiple inner moving boundaries. Ground-fed loops create one controlled boundary per ring and direct maintenance access.
+The open top-fed scheme is rejected for contamination exposure and lifting all flow to a roof header even when it is consumed lower down. Ground-fed supply still needs elevation head for upper floors; it does not eliminate that energy requirement. Hub-fed water is rejected because outer supply crosses multiple inner moving boundaries. Ground-fed loops create one controlled boundary per ring and direct maintenance access.
 
 Six water transfer bays per ring, one unavailable, and 12 hours of equalization storage are study assumptions. At the current demand model, citywide water is about 777 ML/day and the equalization volume is about 389 ML. The largest preliminary transfer-bay duty is about 1.12 m³/s while connected. Fire water, cooling, irrigation, freeboard and emergency reserve are excluded.
 

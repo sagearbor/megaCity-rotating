@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ArchitecturalScene } from '../components/ArchitecturalScene';
 import { ControlPanel } from '../components/ControlPanel';
 import { AnalysisModal } from '../components/AnalysisModal';
@@ -42,7 +42,9 @@ const generateWalkways = (rings: RingConfig[]): WalkwayConfig[] => {
 
 const INITIAL_RINGS = createCityRings() as RingConfig[];
 
-export default function HomePage() {
+export default function HomePage({ initialView = 'overview' }: { initialView?: 'overview' | 'showcase' }) {
+  const [cameraView, setCameraView] = useState(initialView);
+  const [cameraTrigger, setCameraTrigger] = useState(0);
   const { isDarkMode, setIsDarkMode } = useTheme();
   const [rings, setRings] = useState<RingConfig[]>(INITIAL_RINGS);
   const walkways = useMemo(() => generateWalkways(rings), [rings]);
@@ -57,8 +59,8 @@ export default function HomePage() {
   const [showUtilities, setShowUtilities] = useState(false);
   const [showTunnels, setShowTunnels] = useState(false);
   const [showSolarPanels, setShowSolarPanels] = useState(true);
-  const [showRooftopAmenities, setShowRooftopAmenities] = useState(false);
-  const [showGroundAmenities, setShowGroundAmenities] = useState(false);
+  const [showRooftopAmenities, setShowRooftopAmenities] = useState(initialView === 'showcase');
+  const [showGroundAmenities, setShowGroundAmenities] = useState(initialView === 'showcase');
   const [showInfrastructure, setShowInfrastructure] = useState(false);
 
   const [visibleFloorGroups, setVisibleFloorGroups] = useState({
@@ -105,21 +107,33 @@ export default function HomePage() {
     setAiLoading(false);
   };
 
+  const visit = (view: 'overview' | 'showcase') => {
+    setCameraView(view); setCameraTrigger(t => t + 1);
+    if (view === 'showcase') {
+      setShowGroundAmenities(true); setShowRooftopAmenities(true);
+      setSimState(s => ({...s, isPlaying:false, currentTime:0}));
+      setResetCameraTrigger(t => t + 1);
+    }
+  };
+  useEffect(() => { visit(initialView); }, [initialView]);
   const handleReset = () => {
+    setCameraView('overview');
     setRings(createCityRings() as RingConfig[]);
     setSimState(s => ({ ...s, isPlaying: false, currentTime: 0 }));
     setResetCameraTrigger(t => t + 1);
   };
 
   return (
-    <div style={{height:"min(85svh, 900px)", minHeight:560}} className={`w-full relative overflow-hidden transition-colors duration-700 ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900'}`}>
-      <div className="explorer-notice">Concept model · {simState.isPlaying ? `${simState.timeScale}× motion` : "Paused"} · Open settings for layers</div>
+    <><div className="scene-toolbar" aria-label="3D camera shortcuts"><button className="button secondary" onClick={()=>visit('overview')}>Whole city</button><button className="button primary" onClick={()=>visit('showcase')}>Visit detailed neighborhood</button><span>Ring 2–3 · ground amenities, people, forest & rooftops</span></div><div style={{height:"min(85svh, 900px)", minHeight:560}} className={`w-full relative overflow-hidden transition-colors duration-700 ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900'}`}>
+      <div className="explorer-notice">Concept model · {simState.isPlaying ? `${simState.timeScale}× motion` : "Paused"} · Drag to orbit · pinch / scroll to zoom</div>
       <div className="absolute inset-0 z-0">
          <ArchitecturalScene
             rings={rings}
             walkways={visibleWalkways}
             simState={simState}
             resetTrigger={resetCameraTrigger}
+            cameraView={cameraView}
+            cameraTrigger={cameraTrigger}
             isDarkMode={isDarkMode}
             globalOpacity={globalOpacity}
             showUtilities={showUtilities}
@@ -277,6 +291,6 @@ export default function HomePage() {
           )}
         </div>
       )}
-    </div>
+    </div></>
   );
 }

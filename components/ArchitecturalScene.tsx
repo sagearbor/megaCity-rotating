@@ -1,5 +1,5 @@
 import React, { useRef, useMemo, useEffect, useCallback, useState, Suspense, lazy } from 'react';
-import { Canvas, useFrame, ThreeEvent } from '@react-three/fiber';
+import { Canvas, useFrame, useThree, ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, Html, Edges } from '@react-three/drei';
 import * as THREE from 'three';
 import { RingConfig, WalkwayConfig, SimulationState, UmbilicalTowerConfig, HoverInfo } from '../types';
@@ -20,6 +20,8 @@ interface SceneProps {
   walkways: WalkwayConfig[];
   simState: SimulationState;
   resetTrigger: number;
+  cameraView?: 'overview' | 'showcase';
+  cameraTrigger?: number;
   isDarkMode: boolean;
   globalOpacity: number;
   showUtilities?: boolean;
@@ -1359,14 +1361,24 @@ const MemoizedParkZones: React.FC<{
     );
 };
 
-const SceneContent: React.FC<SceneProps> = ({ rings, walkways, simState, resetTrigger, isDarkMode, globalOpacity, showUtilities = false, showTunnels = false, showRooftopAmenities = true, showGroundAmenities = true, showSolarPanels = true, showInfrastructure = false, onHover }) => {
+const SceneContent: React.FC<SceneProps> = ({ rings, walkways, simState, resetTrigger, cameraView = 'overview', cameraTrigger = 0, isDarkMode, globalOpacity, showUtilities = false, showTunnels = false, showRooftopAmenities = true, showGroundAmenities = true, showSolarPanels = true, showInfrastructure = false, onHover }) => {
   const controlsRef = useRef<any>(null);
 
+  const { camera, invalidate } = useThree();
   useEffect(() => {
-    if (controlsRef.current) {
-      controlsRef.current.reset();
+    if (!controlsRef.current) return;
+    const ring2 = rings.find(r => r.id === 'r2');
+    const ring3 = rings.find(r => r.id === 'r3');
+    const x = ring2 && ring3 ? (ring2.outerRadius + ring3.innerRadius) / 2 : 1475;
+    if (cameraView === 'showcase') {
+      camera.position.set(x + 130, 210, 320);
+      controlsRef.current.target.set(x, 25, 0);
+    } else {
+      camera.position.set(0, 5000, 5000);
+      controlsRef.current.target.set(0, 0, 0);
     }
-  }, [resetTrigger]);
+    controlsRef.current.update(); invalidate();
+  }, [cameraView, cameraTrigger, resetTrigger, camera, invalidate]);
 
   return (
     <>
@@ -1424,7 +1436,7 @@ const SceneContent: React.FC<SceneProps> = ({ rings, walkways, simState, resetTr
       })()}
 
       {/* Lazy-loaded showcase components wrapped in Suspense */}
-      <Suspense fallback={null}>
+      <Suspense fallback={<Html center><div className="scene-loading" role="status">Loading neighborhood details…</div></Html>}>
         {/* Showcase Ground Details - Urban furniture and decorative elements in gap between Ring 2 and Ring 3 */}
         {showGroundAmenities && (() => {
           const ring2 = rings.find(r => r.id === 'r2');
@@ -1542,7 +1554,7 @@ const SceneContent: React.FC<SceneProps> = ({ rings, walkways, simState, resetTr
         ref={controlsRef}
         minPolarAngle={0} 
         maxPolarAngle={Math.PI / 2 - 0.05}
-        minDistance={200}
+        minDistance={20}
         maxDistance={12000}
         enablePan={true}
         zoomSpeed={1.0}
@@ -1560,7 +1572,7 @@ export const ArchitecturalScene: React.FC<SceneProps> = (props) => {
   return (
     <div className={`w-full h-full ${props.isDarkMode ? 'bg-slate-950' : 'bg-sky-50'}`}>
       <Canvas 
-        camera={{ position: [0, 5000, 5000], fov: 40, far: 30000 }} 
+        camera={{ position: [0, 5000, 5000], fov: 40, near: 0.5, far: 30000 }}
         frameloop={props.simState.isPlaying && visible ? 'always' : 'demand'}
         dpr={[1, 1.5]}
         gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}

@@ -66,3 +66,13 @@ For another static host, publish `dist` after `npm run build` and configure SPA 
 `pages/HomePage.tsx` is the optional legacy 3D explorer. `App.tsx` is now a compatibility export of the active router. Experimental 3D geometry controls do not modify the published baseline or scenario calculator. Existing amenity and utility overlays are explicitly illustrative and need further coordination with the engineering concept.
 
 Historical January/March implementation notes in `docs/` are retained with superseded notices. Their old “complete” wording referred to software tasks, not an engineered city.
+
+
+## Stop continuity and daily journeys (revision 0.4)
+
+See [the revision note](docs/REVISION_0_4.md) for the all-angle gallery bounds, emergency utility assumptions, 30-destination walking comparison and boarding animation. These are conditional models, not engineering certification. The new journey study is at `/journeys`; arbitrary stops are at `/infrastructure#stopped`.
+
+
+## Mechanical 3D studies (revision 0.5)
+
+[Revision 0.5](docs/REVISION_0_5.md) restores the designer’s direct-step boarding concept and replaces primary infrastructure flowcharts with orbitable mechanical 3D illustrations. Speed options are local comparisons; the city baseline remains 0.5 m/s.

@@ -51,3 +51,28 @@ test('rejects impossible parameter inputs instead of producing misleading result
  for(const bad of [{transferEfficiency:0},{ringCount:0},{ringCount:1.5},{siteCoverage:1.1},{waterLPerPersonDay:-1},{storageHours:NaN},{residentialM2PerPerson:0},{railBandCount:1},{waterTransferStationsPerRing:1},{waterTransferDutyFraction:0},{moduleTargetLengthM:0},{emergencyStopSeconds:0}])assert.throws(()=>calculateScenario(bad),RangeError);
  assert.equal(calculateScenario({speedMps:0}).rings[0].revolutionHours,Infinity);
 });
+
+// Numerical regression checks for the interactive interface study.
+import {motionMetrics,transferMetrics,outageMetrics,powerMetrics} from './interfaces.mjs';
+test('edge rolling speed follows radius; stopped rings have no finite period',()=>{
+ const m=motionMetrics({radius:800,innerRadius:650,outerRadius:950,speed:.5,stopSeconds:120});
+ near(m.innerSpeed,.40625);near(m.outerSpeed,.59375);near(m.stopDistance,30);
+ assert.equal(motionMetrics({radius:800,innerRadius:650,outerRadius:950,speed:0,stopSeconds:120}).periodHours,Infinity);
+});
+test('transfer duty includes reset and unavailable stations; bore conserves flow',()=>{
+ const args={flow:5,stations:6,unavailable:1,stroke:30,speed:.5,resetSeconds:60,velocity:2};
+ const m=transferMetrics(args);near(m.duty,.5);near(m.perStation,2);
+ near(Math.PI*m.diameter*m.diameter/4*2,m.perStation);
+ assert.ok(transferMetrics({...args,resetSeconds:120}).perStation>m.perStation);
+ assert.ok(transferMetrics({...args,unavailable:2}).perStation>m.perStation);
+ assert.equal(transferMetrics({...args,unavailable:6}).perStation,Infinity);
+});
+test('outage buffer exhausts at 2.4 hours under sustained 2.5x inflow',()=>{
+ const m=outageMetrics({averageFlow:1,storageHours:6,peakFactor:2.5,outageHours:2.4});
+ near(m.hoursToFull,2.4);near(m.remaining,0);
+ assert.ok(outageMetrics({averageFlow:1,storageHours:6,peakFactor:2.5,outageHours:3}).remaining<0);
+});
+test('power transfer conserves energy at specified delivered load',()=>{
+ const m=powerMetrics({deliveredMW:100,efficiency:.8});near(m.inputMW,125);near(m.lossMW,25);
+ near(powerMetrics({deliveredMW:100,efficiency:1}).lossMW,0);
+});

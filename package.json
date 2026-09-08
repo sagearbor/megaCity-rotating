@@ -8,7 +8,7 @@
     "build": "node scripts/generate-brief.mjs && vite build",
     "preview": "vite preview",
     "check": "tsc --noEmit",
-    "test": "node --test model/design.test.mjs"
+    "test": "node --test model/design.test.mjs model/journeys.test.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.35.0",
